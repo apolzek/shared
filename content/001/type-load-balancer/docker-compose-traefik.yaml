@@ -1,0 +1,33 @@
+version: '3'
+services:
+  reverse-proxy:
+    image: traefik:v2.8
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker --providers.file.filename=/etc/traefik/router.yml
+    ports:
+      - "80:80" # The HTTP port
+      - "8080:8080" # The Web UI (enabled by --api.insecure=true)
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - ../traefik/:/etc/traefik/:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  front-a:
+    image: nginx
+    environment:
+     - NGINX_PORT=80
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.front-a.rule=Host(`front-a`)"
+    expose:
+      - 80
+
+  front-b:
+    image: nginx
+    environment:
+     - NGINX_PORT=80
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.front-b.rule=Host(`front-b`)"
+    expose:
+      - 80
