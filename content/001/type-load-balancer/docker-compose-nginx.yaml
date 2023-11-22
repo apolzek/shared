@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+
+  ###########
+  ## Nginx ##
+  ###########
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      # - "443:443"
+    volumes:
+      - ../nginx/nginx-load-balancer.conf:/etc/nginx/nginx.conf
+      # - ./certs:/etc/nginx/certs
+
+  #########################
+  ## front-a and front-b ##
+  #########################
+  
+  front-a:
+    image: nginx:latest
+    expose:
+      - 80
+  
+  front-b:
+    image: nginx:latest
+    expose:
+      - 80
+
+networks:
+  reverse-proxy:
+    external: true

@@ -1,0 +1,9 @@
+https://docs.botkube.io/installation/discord/
+
+
+  whoami:
+    image: containous/whoami
+    labels:
+      - "traefik.http.routers.mctest.rule=Host(`mctest.org`)"
+    expose:
+      - 80
