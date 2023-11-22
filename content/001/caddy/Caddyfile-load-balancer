@@ -1,0 +1,9 @@
+# Define o endereço de escuta e os logs
+:80 {
+  log stdout
+
+  # Configuração para o proxy reverso com balanceamento de carga
+  reverse_proxy front-a:80 front-b:80 {
+    lb_policy round_robin
+  }
+}

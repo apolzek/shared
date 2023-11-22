@@ -1,0 +1,16 @@
+# Define o endereço de escuta e os logs
+:80 {
+  log stdout
+
+  # Configuração para o proxy reverso para front-a
+  @front-a {
+    path /front-a
+  }
+  reverse_proxy @front-a front-a:80
+
+  # Configuração para o proxy reverso para front-b
+  @front-b {
+    path /front-b
+  }
+  reverse_proxy @front-b front-b:80
+}

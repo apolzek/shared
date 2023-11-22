@@ -1,0 +1,22 @@
+version: '3'
+services:
+  caddy:
+    image: caddy:alpine
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../caddy/Caddyfile-reverse-proxy:/etc/caddy/Caddyfile
+    restart: unless-stopped
+
+  front-a:
+    image: nginx
+    environment:
+     - NGINX_PORT=80
+
+  front-b:
+    image: nginx
+    environment:
+     - NGINX_PORT=80
+
