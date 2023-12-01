@@ -21,3 +21,8 @@
       https://github.com/prometheus/node_exporter
 
       https://mxulises.medium.com/simple-prometheus-setup-on-docker-compose-f702d5f98579
+
+
+olha esse
+      https://github.com/blueswen/opentelemetry-apm/blob/main/docker-compose.yaml
+      https://github.com/open-telemetry/opentelemetry-go/blob/main/CONTRIBUTING.md

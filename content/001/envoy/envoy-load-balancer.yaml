@@ -32,7 +32,7 @@ static_resources:
     type: STRICT_DNS
     lb_policy: ROUND_ROBIN
     load_assignment:
-      cluster_name: backend-a
+      cluster_name: backend
       endpoints:
       - lb_endpoints:
         - endpoint:
@@ -47,6 +47,7 @@ static_resources:
                 port_value: 80
 
 admin:
+  access_log_path: "/dev/null"
   address:
     socket_address:
       address: 0.0.0.0

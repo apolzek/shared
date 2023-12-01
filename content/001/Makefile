@@ -16,7 +16,6 @@ NGINX_REVERSE_PROXY = ./type-reverse-proxy/docker-compose-nginx.yaml
 TRAEFIK_LOAD_BALANCER = ./type-load-balancer/docker-compose-traefik.yaml
 TRAEFIK_REVERSE_PROXY = ./type-reverse-proxy/docker-compose-traefik.yaml
 
-
 .PHONY: up down
 
 up:
