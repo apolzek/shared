@@ -112,7 +112,6 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     ports:
       - "3100:3100"
-
       
 volumes:
   prometheus_data: {}
