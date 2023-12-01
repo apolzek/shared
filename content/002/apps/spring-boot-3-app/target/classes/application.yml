@@ -1,0 +1,28 @@
+spring:
+  application.name: WebFlux-OpenTelemetry-Application
+application-description: WebFlux-OpenTelemetry-Application
+application-version: 1.0
+
+
+
+# All traces should be sent to latency analysis tool
+management.tracing.sampling.probability: 1.0
+
+management.endpoint.prometheus.enabled: true
+management.endpoints.web.exposure.include: "*"
+management.endpoint.health.show-details: ALWAYS
+
+management:
+  otlp:
+    metrics:
+      export:
+        url: http://localhost:4318/v1/metrics
+        step: 10s
+    tracing:
+      endpoint: http://localhost:4318/v1/traces
+      export:
+        step: 10s # Export interval set to 10 seconds
+  tracing:
+    sampling:
+      probability: 1.0
+

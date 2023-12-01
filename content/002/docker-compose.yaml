@@ -35,8 +35,11 @@ services:
       - 3000:3000
     restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=grafana
+      # - GF_SECURITY_ADMIN_USER=admin
+      # - GF_SECURITY_ADMIN_PASSWORD=grafana
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
     volumes:
       - ./grafana:/etc/grafana/provisioning/datasources
       - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
@@ -81,6 +84,9 @@ services:
       - --config=/etc/otelcol-cont/otel-collector.yml
     volumes:
       - ./otel-collector/otel-collector.yml:/etc/otelcol-cont/otel-collector.yml
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"  
     ports:
       - "1888:1888" # pprof extension
       - "8888:8888" # Prometheus metrics exposed by the collector
@@ -89,6 +95,9 @@ services:
       - "4317:4317" # OTLP gRPC receiver
       - "4318:4318" # OTLP http receiver
       - "55679:55679" # zpages extension
+    networks:
+      - monitoring
+
 
   ###########
   ## Tempo ##
@@ -102,7 +111,10 @@ services:
     ports:
       - "3200:3200"   # tempo
       - "4317"  # otlp grpc
-  
+      - "4318"
+    networks:
+      - monitoring
+
   ##########
   ## Loki ##
   ##########
@@ -112,7 +124,22 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     ports:
       - "3100:3100"
-      
+    networks:
+      - monitoring
+
+  promtail:
+    image:  grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./promtail/promtail.yaml:/etc/promtail/docker-config.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/docker-config.yaml
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
 volumes:
   prometheus_data: {}
 

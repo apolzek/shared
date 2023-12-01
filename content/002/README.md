@@ -1,5 +1,9 @@
 ## Modern Monitoring Stack
 
+user: admin
+pass: grafana
+http://localhost:3000/
+
 
 
     <!-- environment: 
