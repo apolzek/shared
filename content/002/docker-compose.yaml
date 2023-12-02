@@ -127,6 +127,10 @@ services:
     networks:
       - monitoring
 
+  ##############
+  ## Promtail ##
+  ##############
+
   promtail:
     image:  grafana/promtail:latest
     container_name: promtail
