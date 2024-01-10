@@ -2,10 +2,6 @@ version: '3'
 
 services:
 
-  ###########
-  ## Nginx ##
-  ###########
-
   nginx:
     image: nginx:latest
     container_name: nginx-proxy
@@ -14,21 +10,12 @@ services:
       # - "443:443"
     volumes:
       - ../nginx/nginx-load-balancer.conf:/etc/nginx/nginx.conf
-      # - ./certs:/etc/nginx/certs
 
-  #########################
-  ## front-a and front-b ##
-  #########################
-  
   front-a:
-    image: nginx:latest
-    expose:
-      - 80
-  
+    image:  traefik/whoami
+
   front-b:
-    image: nginx:latest
-    expose:
-      - 80
+    image:  traefik/whoami
 
 networks:
   reverse-proxy:

@@ -2,10 +2,6 @@ version: '3'
 
 services:
 
-  #############
-  ## HAProxy ##
-  #############
-
   haproxy:
     image: haproxytech/haproxy-alpine:2.4
     container_name: haproxy
@@ -14,20 +10,13 @@ services:
     ports:
       - "80:80"
       - "8404:8404"
-
-  #########################
-  ## front-a and front-b ##
-  #########################
   
   front-a:
-    image: nginx:latest
-    expose:
-      - 80
-  
+    image:  traefik/whoami
+
   front-b:
-    image: nginx:latest
-    expose:
-      - 80
+    image:  traefik/whoami
+
 
 networks:
   reverse-proxy:
