@@ -38,7 +38,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp]  # name here should match the exporter name for tempo which is otlp
+      exporters: [otlp]
     logs:
       receivers: [otlp]
       exporters: [loki,logging]

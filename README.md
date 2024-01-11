@@ -1,6 +1,6 @@
 # shared
 
-by: **Vinícius Batista** (*apolzek*)
+by: **Vinícius Batista** (*apolzek*) - Site reliability Engineer
 
 ```
 @ for category/subject 
