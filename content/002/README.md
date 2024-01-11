@@ -8,8 +8,7 @@ The OpenTelemetry Collector is a crucial component within the OpenTelemetry proj
 | Grafana Loki | Loki is a horizontally scalable, highly available, multi-tenant log aggregation system inspired by Prometheus |
 | Grafana Tempo | Grafana Tempo is an open source, easy-to-use, and high-scale distributed tracing backend |
 | Promtail | Promtail is an agent which ships the contents of local logs to a private |
-| Prometheus | Power your metrics and alerting with the leading
-open-source monitoring solution |
+| Prometheus | Power your metrics and alerting with the leading |open-source monitoring solution |
 | Node exporter | The node_exporter is designed to monitor the host system |
 | OpenTelemetry Collector | The OpenTelemetry Collector offers a vendor-agnostic implementation of how to receive, process and export telemetry data |
 | Spring Application | Spring Boot helps you accelerate application development |
@@ -27,4 +26,4 @@ curl http://localhost:8080/api/v1/posts/1
 
 ![image](./.image/grafana.png) 
 
-Use the explore area to view statistics, traces and logs
+*Use the explore area to view statistics, traces and logs*
