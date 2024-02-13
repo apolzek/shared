@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:latest
+    # build: .
+    # image: postgres:15.3-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: rinha
+      POSTGRES_PASSWORD: rinhadebackend
+      POSTGRES_DB: app_db
+      POSTGRES_EXTENSIONS: "pg_stat_statements"
+    command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c max_connections=200
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - monitoring
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: rinha@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: rinhadebackend
+    ports:
+      - 8080:80
+    volumes:
+      - ./data/pgadmin:/var/lib/pgadmin 
+    networks:
+      - monitoring
+
+  postgres_exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter
+    environment:
+      DATA_SOURCE_NAME: postgresql://rinha:rinhadebackend@postgres:5432/app_db?sslmode=disable
+    ports:
+      - "9187:9187"
+    restart: always
+    depends_on:
+      - postgres
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    restart: always
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    environment:
+      # - GF_SECURITY_ADMIN_USER=admin
+      # - GF_SECURITY_ADMIN_PASSWORD=grafana
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    volumes:
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
+      - ./grafana/dashboards/postgres.json:/var/lib/grafana/dashboards/node-exporter.json
+    networks:
+      - monitoring
+
+      
+  loki:
+    image: grafana/loki:latest
+    container_name: looki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring
+      
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./promtail/promtail.yaml:/etc/promtail/promtail.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/promtail.yaml
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
+
+networks:
+  monitoring:
+    driver: bridge

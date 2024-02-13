@@ -1,0 +1,25 @@
+apiVersion: 1
+
+datasources:
+- name: Prometheus
+  type: prometheus
+  url: http://prometheus:9090 
+  isDefault: true
+  access: proxy
+  editable: true
+  
+- name: Postgres
+  type: postgres
+  url: postgres:5432
+  database: app_db
+  user: rinha
+  secureJsonData:
+    password: "rinhadebackend"
+  jsonData:
+    sslmode: "disable" # disable/require/verify-ca/verify-full
+      
+- name: Loki
+  type: loki
+  url: http://loki:3100
+  access: proxy
+  editable: true
