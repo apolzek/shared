@@ -19,4 +19,5 @@ If something here helped you, make a **pix**:
 | [002](content/002) | 2024-01-12      | **@monitoring @observability** *#prometheus #exporters #grafana #tempo #loki #opentelemetry #promtail*     |
 | [003](content/003) | 2025-00-00      | **@container-orchestration** *#kubernetes #helm #terraform*                                                |
 | [004](content/004) | 2025-00-00      | **@monitoring @observability** *#prometheus #metrics #python*                                              |
-| [005](content/004) | 2024-01-13      | **@monitoring @database** *#prometheus #postgresql #prometheus_exporter #loki #promtail #grafana #pgadmin* |
+| [005](content/005) | 2024-01-13      | **@monitoring @database** *#prometheus #postgresql #prometheus_exporter #loki #promtail #grafana #pgadmin* |
+| [006](content/006) | 2024-02-20      | **@monitoring** *#prometheus #blackbox_exporter #exporter*                                                 |

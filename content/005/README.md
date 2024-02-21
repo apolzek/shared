@@ -31,3 +31,8 @@ FROM pg_stat_statements
 ORDER BY 1 DESC
 LIMIT 500;
 ```
+
+
+References
+
+https://medium.com/@shaileshkumarmishra/find-slow-queries-in-postgresql-42dddafc8a0e
