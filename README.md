@@ -7,9 +7,12 @@ by: **Vinícius Batista** (*apolzek*) - Site Reliability Engineer 🖤
 # for tool
 ```
 
-If something here helped you, make a **pix**:
+You can send topic suggestions on my telegram **@apolzek**
 
 <img src="images/qrcode.jpeg" alt="qrcode_pix" width="130" height="130">
+
+*Buy me a coffee*
+
 
 ### Content
 
