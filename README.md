@@ -24,3 +24,4 @@ You can send topic suggestions on my telegram **@apolzek**
 | [004](content/004) | 2025-00-00      | **@monitoring @observability** *#prometheus #metrics #python*                                              |
 | [005](content/005) | 2024-01-13      | **@monitoring @database** *#prometheus #postgresql #prometheus_exporter #loki #promtail #grafana #pgadmin* |
 | [006](content/006) | 2024-02-20      | **@monitoring** *#prometheus #blackbox_exporter #exporter*                                                 |
+| [007](content/007) | 2024-02-20      | **@monitoring** *#opentelemetry-operator #opentelemetry #kubernetes*                                       |

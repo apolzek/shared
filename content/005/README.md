@@ -1,11 +1,40 @@
+## Monitoring PostgreSQL in container
 
+**PoC:** Create an observability ecosystem for PostgreSQL using containers. Ensure visibility into the database and perform load testing.
+
+### compose
+
+| Service             | Endpoint                                           |
+| ------------------- | -------------------------------------------------- |
+| PostgreSQL          | postgresql://localhost:5432/app_db?sslmode=disable |
+| pgAdmin             | [http://localhost:8080](http://localhost:8080)     |
+| PostgreSQL Exporter | N/A                                                |
+| Prometheus          | [http://localhost:9090](http://localhost:9090)     |
+| Grafana             | [http://localhost:3000](http://localhost:3000)     |
+| Loki                | N/A                                                |
+| Promtail            | N/A                                                |
+
+### Reproduce locally
+
+Start
+```
+make start
+```
+
+Stop
+```
+make destroy
+```
+
+Login database using psql
 ```sh
 psql -h localhost -U rinha -d app_db
 ```
 
+Check extensions
 ```sql
-SELECT * FROM pg_available_extensions WHERE name = 'postgis';
 SELECT * FROM pg_available_extensions;
+SELECT * FROM pg_available_extensions WHERE name = 'postgis';
 ```
 
 ```bash
@@ -14,25 +43,7 @@ docker exec -it postgres_db psql -U rinha -d app_db -c "CREATE EXTENSION pg_stat
 docker exec -it postgres_db psql -U rinha -d app_db -c "SELECT * FROM pg_extension;"
 ```
 
-```sh
-$ docker run -it --rm -v .... postgres:10.5 \
--c shared_preload_libraries='pg_stat_statements' \
--c pg_stat_statements.max=10000 \
--c pg_stat_statements.track=all
-```
-
-```sql
-SELECT
-  (total_exec_time / 1000 / 60) as total_min,
-  mean_exec_time as avg_ms,
-  calls,
-  query
-FROM pg_stat_statements
-ORDER BY 1 DESC
-LIMIT 500;
-```
-
-
-References
+### References
 
 https://medium.com/@shaileshkumarmishra/find-slow-queries-in-postgresql-42dddafc8a0e
+https://mxulises.medium.com/simple-prometheus-setup-on-docker-compose-f702d5f98579
