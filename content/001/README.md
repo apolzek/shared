@@ -1,4 +1,4 @@
-## Basic examples of load balancer and reverse proxy configuration
+## Testing different tools for reverse proxy and load balancer
 
 ### Load Balancer and Reverse Proxy
 
