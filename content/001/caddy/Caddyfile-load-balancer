@@ -1,0 +1,7 @@
+:80 {
+  log stdout
+
+  reverse_proxy front-a:80 front-b:80 {
+    lb_policy round_robin
+  }
+}

@@ -1,0 +1,13 @@
+:80 {
+  log stdout
+
+  @front-a {
+    path /front-a
+  }
+  reverse_proxy @front-a front-a:80
+
+  @front-b {
+    path /front-b
+  }
+  reverse_proxy @front-b front-b:80
+}

@@ -1,0 +1,11 @@
+groups:
+  - name: example
+    rules:
+      - alert: HighAppCount
+        expr: app_request_count_total > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High app count detected"
+          description: "The app count is greater than 5 (current value: {{ $value }})"

@@ -1,0 +1,12 @@
+http:
+  routers:
+    ngix:
+      rule: "Path(`/`)"
+      service: "nginx-service"
+
+  services:
+    nginx-service:
+      loadBalancer:
+        servers:
+          - url: "http://front-a"
+          - url: "http://front-b"
