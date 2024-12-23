@@ -1,4 +1,4 @@
-## Testing different tools for reverse proxy and load balancer
+## Exploring alternatives for load balancing and reverse proxy
 
 ### Objectives
 
