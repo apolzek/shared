@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: multi-cluster-appset
+  namespace: argocd
+spec:
+  generators:
+    - clusters: {}
+  template:
+    metadata:
+      name: '{{name}}-application'
+      namespace: argocd
+    spec:
+      project: default
+      destination:
+        server: '{{server}}'
+        namespace: default
+      source:
+        repoURL: '<Your-git-url>'
+        path: <path-to-manifest>
+        targetRevision: HEAD
+      syncPolicy:
+        automated:
+          prune: true

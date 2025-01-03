@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: production
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+    environment: production
+type: Opaque
+stringData:
+  name: production
+  server: https://<cluster-ip>:8443
+  config: |
+    {
+      "bearerToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdtM1JJeHg0d3N0cWJxMmFKdnY5RUVNRkNCbjFabGVJUkRocXZzTTUtTW8ifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxNzM1MDQxMTgxLCJpYXQiOjE3MzUwMzc1ODEsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwianRpIjoiZDEyMDg4NGEtYWE5NC00NmEwLTllMDEtOWJlMjdhZjEwNDNlIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJhcmdvY2QtbWFuYWdlciIsInVpZCI6ImMyMjBiM2U5LTIxOTctNDhlMS1hODI4LWFjOGEzMjA5OTQ5NiJ9fSwibmJmIjoxNzM1MDM3NTgxLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06YXJnb2NkLW1hbmFnZXIifQ.S1WPSTYYMM9PRaCHe2KUbfOgqHlDuNsweyyvrkAdLXHZGB4wpcDkE0h0af4qEDW-9HiLjxlp9ShFGx8Qc8yDt2v96dClbT2DN3fD1Cy7_DWzV6LWzOUkm7dMUFoDNT1H16lKmCD91376ov-fHeiMJHm22XDsOJ4uYbpbwSOxaX0qx_BmQ4CZsGnpdDC8-slZ4MB1I7NFq_wM2cYJo64AWaYJoSOR0p7wh4kZiD9HKDEksFtWZioY1K9rZIK-lgPGvfFiGgoQzkTMoz8jeq2ziz_KFVNBN_Ya_Hihv8r1nBGkGwJHyWsx0nePpXnj2J0IakU1fnlrYb5eJqM1J1uOmQ",
+      "tlsClientConfig": {
+          "insecure": true
+      }
+    }
