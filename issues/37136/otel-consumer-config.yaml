@@ -1,21 +1,30 @@
 receivers:
-  kafka:
+  kafka/traces:
     brokers: ["kafka:9092"]
     topic: otlp_spans
-    encoding: otlp_proto
+    autocommit:
+      enable: false
+    # message_marking: 
+    #   after: true
+    #   on_error: false
 
 exporters:
-  jaeger:
-    endpoint: "http://jaeger:14250"
+  otlp/jaeger:
+    endpoint: "http://jaeger:4317"
     tls:
       insecure: true
-      
+
 processors:
   batch:
+    send_batch_size: 10
+    timeout: 1s
 
 service:
+  telemetry:
+    logs:
+      level: debug
   pipelines:
     traces:
-      receivers: [kafka]
+      receivers: [kafka/traces]
       processors: [batch]
-      exporters: [elasticsearch]
+      exporters: [otlp/jaeger]

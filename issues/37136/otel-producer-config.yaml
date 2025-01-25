@@ -2,9 +2,15 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
-
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "http://*"
+            - "https://*"
 exporters:
+  debug:
   kafka:
     brokers: ["kafka:9092"]
     topic: otlp_spans
@@ -13,6 +19,9 @@ processors:
   batch:
 
 service:
+  telemetry:
+    logs:
+      level: info
   pipelines:
     traces:
       receivers: [otlp]
