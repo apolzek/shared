@@ -1,0 +1,24 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+exporters:
+  kafka:
+    brokers: ["kafka:9092"]
+    topic: otlp_spans
+
+processors:
+  batch:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [kafka]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [kafka]

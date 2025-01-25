@@ -1,0 +1,21 @@
+receivers:
+  kafka:
+    brokers: ["kafka:9092"]
+    topic: otlp_spans
+    encoding: otlp_proto
+
+exporters:
+  jaeger:
+    endpoint: "http://jaeger:14250"
+    tls:
+      insecure: true
+      
+processors:
+  batch:
+
+service:
+  pipelines:
+    traces:
+      receivers: [kafka]
+      processors: [batch]
+      exporters: [elasticsearch]
