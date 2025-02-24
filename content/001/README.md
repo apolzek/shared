@@ -2,7 +2,7 @@
 
 ### Objectives
 
-The primary objective of this article is to test and compare the configurations of various tools for their roles as reverse proxies and load balancers. The tools under consideration include Caddy, Envoy, HAProxy, Nginx, and Traefik. Each tool's capabilities in handling reverse proxy duties, such as SSL termination, content caching, and request routing, will be examined. Additionally, their effectiveness in distributing traffic and ensuring high availability through load balancing will be tested. Through hands-on testing, we aim to understand the strengths and differences of each tool in real-world scenarios, providing insights for choosing the most suitable solution based on performance, ease of configuration, and feature set.
+The purpose of this PoC is to simply test and compare the basic configurations of different tools used as reverse proxies and load balancers. A reverse proxy receives client requests and forwards them to internal servers, handling tasks such as SSL termination, content caching, and request routing. A load balancer distributes traffic across multiple servers to optimize performance and ensure high availability. The tools evaluated include **Caddy, Envoy, HAProxy, Nginx, and Traefik**. The goal is not to analyze performance or advanced use cases but rather to explore their basic configurations for both purposes, making it easier to choose the most suitable solution based on ease of use and available features.
 
 ### Prerequisites
 
@@ -20,7 +20,7 @@ On the other hand, a Load Balancer is designed to distribute incoming network tr
 
 ![image](./.image/drawing.png)
 
-The relationship between a Reverse Proxy and a Load Balancer is symbiotic. In many scenarios, a Reverse Proxy is deployed in conjunction with a Load Balancer to create a robust and scalable infrastructure. The Reverse Proxy handles tasks such as SSL termination, caching, and compression, offloading these responsibilities from the backend servers. Meanwhile, the Load Balancer distributes incoming requests among multiple servers, optimizing resource utilization and ensuring high availability.
+:warning: The relationship between a Reverse Proxy and a Load Balancer is symbiotic. In many scenarios, a Reverse Proxy is deployed in conjunction with a Load Balancer to create a robust and scalable infrastructure. The Reverse Proxy handles tasks such as SSL termination, caching, and compression, offloading these responsibilities from the backend servers. Meanwhile, the Load Balancer distributes incoming requests among multiple servers, optimizing resource utilization and ensuring high availability.
 
 ### Reproducing
 

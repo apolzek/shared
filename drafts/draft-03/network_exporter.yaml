@@ -47,7 +47,6 @@ data:
     # Main Config
     conf:
       refresh: 15m
-      nameserver: 192.168.0.1:53 # Optional
       nameserver_timeout: 250ms # Optional
 
     # Specific Protocol settings
@@ -72,32 +71,26 @@ data:
 
     # Target list and settings
     targets:
-      - name: internal
-        host: 192.168.0.1
-        type: ICMP
-        probe:
-          - hostname1
-          - hostname2
-        labels:
-          dc: home
-          rack: a1
-      - name: google-dns1
-        host: 8.8.8.8
-        type: ICMP
-      - name: google-dns2
-        host: 8.8.4.4
-        type: MTR
-      - name: cloudflare-dns
-        host: 1.1.1.1
-        type: ICMP+MTR
-      - name: cloudflare-dns-https
-        host: 1.1.1.1:443
-        source_ip: 192.168.1.1
+      - name: pythontest
+        host: 192.168.100.172:8000
         type: TCP
-      - name: download-file-64M
-        host: http://test-debit.free.fr/65536.rnd
+      - name: github
+        host: https://github.com/syepes
         type: HTTPGet
-      - name: download-file-64M-proxy
-        host: http://test-debit.free.fr/65536.rnd
-        type: HTTPGet
-        proxy: http://localhost:3128
+       
+          
+        
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: network-exporter
+  labels:
+    app: network-exporter
+spec:
+  selector:
+    app: network-exporter
+  ports:
+    - protocol: TCP
+      port: 9427
+      targetPort: 9427

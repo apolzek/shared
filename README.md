@@ -14,9 +14,9 @@ I use this repository to put into practice what I learn on Medium and also to te
 
 | id                 | publicationDate | title                                                                       |
 | ------------------ | --------------- | --------------------------------------------------------------------------- |
-| [001](content/001) | 2025-01-01      | Exploring alternatives for load balancing and reverse proxy #docker-compose |
-<!-- | [002](content/002) | 2025-01-01      | Modern Monitoring Stack (logs, traces and metrics) #docker-compose          |
-| [003](content/003) | 2025-01-01      | Managing kubernetes manifests with Terraform #kind                          |
+| [001](content/001) | 2025-01-10      | Exploring alternatives for load balancing and reverse proxy #docker-compose |
+| [002](content/002) | 2025-02-10      | Modern Monitoring Stack (logs, traces and metrics) #docker-compose          |
+<!--| [003](content/003) | 2025-01-01      | Managing kubernetes manifests with Terraform #kind                          |
 | [004](content/004) | 2025-01-01      | Implement OpenTelemetry instrumentation in Kubernetes #kind                 |
 | [005](content/005) | 2025-01-01      | PostgreSQL observability #docker-compose                                    |
 | [006](content/006) | 2025-01-01      | Logging with Loki, Fluent Bit and Grafana                                   |

@@ -78,7 +78,7 @@ services:
   #############################
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib
+    image: otel/opentelemetry-collector:0.119.0
     restart: always
     command:
       - --config=/etc/otelcol-cont/otel-collector.yml

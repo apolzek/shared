@@ -3,13 +3,14 @@ receivers:
     protocols:
       http:
       grpc:
+        endpoint: 0.0.0.0:4317
 
 processors:
   batch:
 
 exporters:
-  logging:
-    loglevel: debug
+  debug:
+
   prometheus:
     endpoint: "0.0.0.0:8889"
     const_labels:
@@ -19,7 +20,7 @@ exporters:
     tls:
       insecure: true
 
-  loki:
+  otlphttp/loki:
     endpoint: "http://loki:3100/loki/api/v1/push"
 
 extensions:
@@ -41,4 +42,12 @@ service:
       exporters: [otlp]
     logs:
       receivers: [otlp]
-      exporters: [loki,logging]
+      exporters: [otlphttp/loki,debug]
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888
