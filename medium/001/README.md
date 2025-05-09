@@ -1,0 +1,1 @@
+https://itnext.io/kubernetes-namespaces-the-secret-weapon-for-zero-risk-blue-green-deployments-5e59060a6267

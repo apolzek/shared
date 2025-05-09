@@ -12,5 +12,3 @@ nodes:
 - role: worker
 - role: worker
 EOF
-
-# kind create cluster --config /tmp/kind-config.yml

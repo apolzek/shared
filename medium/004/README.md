@@ -1,0 +1,1 @@
+https://araji.medium.com/argocd-deployment-patterns-app-of-apps-vs-applicationsets-c56e2e80183c
