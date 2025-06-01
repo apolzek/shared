@@ -1,0 +1,48 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'local-dev'
+
+rule_files:
+  # - "alert_rules.yml"
+
+scrape_configs:
+  # Auto-monitoring do Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # OpenTelemetry Collector
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+    scrape_interval: 10s
+
+  # Backend application metrics
+  - job_name: 'backend'
+    static_configs:
+      - targets: ['backend:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Faro Receiver metrics
+  - job_name: 'faro-receiver'
+    static_configs:
+      - targets: ['faro-collector:12347']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Jaeger metrics
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Loki metrics
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+    metrics_path: '/metrics'
+    scrape_interval: 30s

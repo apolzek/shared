@@ -1,0 +1,68 @@
+
+faro.receiver "frontend_telemetry" {
+  server {
+    listen_address = "0.0.0.0"
+    listen_port    = 12347
+    
+    cors_allowed_origins = ["*"]
+  }
+
+  // Configurar outputs para onde enviar os dados
+  output {
+    logs    = [loki.write.default.receiver]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+  }
+
+  // Adicionar labels extras
+  extra_log_labels = {
+    service_name = "frontend",
+    environment  = "local",
+  }
+}
+
+// Configuração do Loki (Logs)
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+    
+    // Headers opcionais
+    headers = {
+      "X-Custom-Header" = "faro-logs",
+    }
+  }
+  
+  // Labels externos
+  external_labels = {
+    cluster     = "local-dev",
+    environment = "development",
+    source      = "faro",
+  }
+}
+
+// Configuração do Tempo (Traces)
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "http://tempo:4317"
+    tls {
+      insecure = true
+    }
+    
+    // Headers opcionais
+    headers = {
+      "X-Custom-Header" = "faro-traces",
+    }
+  }
+}
+
+
+// Descoberta de serviços para métricas do próprio Alloy
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+
+// Logging para debug (remover em produção)
+logging {
+  level = "info"
+  format = "logfmt"
+}

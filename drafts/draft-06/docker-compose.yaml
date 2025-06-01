@@ -1,0 +1,160 @@
+
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  grafana-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  loki-data:
+    driver: local
+  tempo-data:
+    driver: local
+
+services:
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_LOG_LEVEL=info
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+    networks:
+      - observability
+
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: observability-tempo
+    restart: unless-stopped
+    ports:
+      - "3200:3200"  # Tempo HTTP
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+    volumes:
+      - tempo-data:/var/tempo
+      - ./config/tempo:/etc/tempo
+    command: 
+      - -config.file=/etc/tempo/tempo.yaml
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # Prometheus - Métricas (opcional para monitoramento da stack)
+  # prometheus:
+  #   image: prom/prometheus:v2.51.0
+  #   container_name: observability-prometheus
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - prometheus-data:/prometheus
+  #     - ./config/prometheus:/etc/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/etc/prometheus/console_libraries'
+  #     - '--web.console.templates=/etc/prometheus/consoles'
+  #     - '--storage.tsdb.retention.time=200h'
+  #     - '--web.enable-lifecycle'
+  #   networks:
+  #     - observability
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+
+  # Grafana Alloy - Collector principal para Faro
+  alloy:
+    image: grafana/alloy:v1.0.0
+    container_name: faro-alloy
+    restart: unless-stopped
+    ports:
+      - "12347:12347"  # Faro receiver endpoint
+      - "12348:12348"  # Alloy admin interface
+    volumes:
+      - ./config/alloy:/etc/alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12348
+      - --storage.path=/var/lib/alloy/data
+      - --disable-reporting=true
+    environment:
+      - ALLOY_DEPLOY_MODE=docker
+    networks:
+      - observability
+    depends_on:
+      - loki
+      # - tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:12348/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO - Storage para Loki (opcional, para produção)
+  # minio:
+  #   image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+  #   container_name: observability-minio
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - minio-data:/data
+  #   environment:
+  #     - MINIO_ROOT_USER=minioadmin
+  #     - MINIO_ROOT_PASSWORD=minioadmin123
+  #   command: server /data --console-address ":9001"
+  #   networks:
+  #     - observability
+
+  # Log Generator para testes (opcional)
+  # log-generator:
+  #   image: mingrammer/flog:0.4.3
+  #   container_name: observability-log-generator
+  #   restart: unless-stopped
+  #   command: 
+  #     - -f
+  #     - json
+  #     - -d
+  #     - "1s"
+  #     - -l
+  #   networks:
+  #     - observability
+  #   profiles:
+  #     - testing  # Use: docker-compose --profile testing up
