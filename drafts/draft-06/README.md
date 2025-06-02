@@ -10,3 +10,11 @@ https://github.com/grafana/faro-web-sdk/tree/main/demo
 https://github.com/grafana/faro-web-sdk/tree/main/packages/core
 https://github.com/grafana/faro-web-sdk/tree/main/packages/web-tracing
 https://github.com/grafana/faro-web-sdk/blob/main/docs/sources/tutorials/quick-start-browser.md
+
+
+http://localhost:12348/metrics
+https://github.com/grafana/faro-web-sdk/blob/main/docs/sources/tutorials/quick-start-browser.md
+https://github.com/blueswen/observability-ironman30-lab/blob/6fbf4e32f915f2e83ea4141a7defa6334991cd81/app/todo-app/jquery-app/index.html#L34
+https://github.com/grafana/faro-web-sdk/blob/c5562b387f8ad8b7318f3aaedfa7c3e2ce005fca/docs/sources/tutorials/use-cdn-library.md?plain=1#L27
+https://github.com/grafana/faro-web-sdk/blob/main/docs/sources/tutorials/use-cdn-library.md
+https://grafana.com/grafana/dashboards/17766-frontend-monitoring/

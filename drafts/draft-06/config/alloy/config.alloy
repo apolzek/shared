@@ -7,20 +7,23 @@ faro.receiver "frontend_telemetry" {
     cors_allowed_origins = ["*"]
   }
 
-  // Configurar outputs para onde enviar os dados
   output {
     logs    = [loki.write.default.receiver]
     traces  = [otelcol.exporter.otlp.tempo.input]
   }
 
-  // Adicionar labels extras
   extra_log_labels = {
     service_name = "frontend",
     environment  = "local",
+    source       = "faro",
+    // Adicionar labels que a query espera
+    Environment  = "local",
+    Application  = "gerenciador-itens",
   }
 }
 
-// Configuração do Loki (Logs)
+
+
 loki.write "default" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
@@ -31,11 +34,12 @@ loki.write "default" {
     }
   }
   
-  // Labels externos
   external_labels = {
     cluster     = "local-dev",
     environment = "development",
     source      = "faro",
+    Environment = "local",
+    Application = "gerenciador-itens",
   }
 }
 
@@ -60,6 +64,37 @@ discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
+prometheus.scrape "alloy_metrics" {
+	targets = [{
+		__address__ = "localhost:12348",
+	}]
+	forward_to      = [prometheus.remote_write.metrics_write.receiver]
+	job_name        = "alloy"
+	scrape_interval = "15s"
+	metrics_path    = "/metrics"
+	honor_labels    = false
+}
+
+// Remote Write para Prometheus
+prometheus.remote_write "metrics_write" {
+	endpoint {
+		name = "prometheus-local"
+		url  = "http://prometheus:9090/api/v1/write"
+		
+		headers = {
+			"X-Custom-Header" = "faro-metrics",
+		}
+		
+		queue_config {}
+		metadata_config {}
+	}
+	
+	external_labels = {
+		cluster     = "local-dev",
+		environment = "development",
+		source      = "faro",
+	}
+}
 
 // Logging para debug (remover em produção)
 logging {
