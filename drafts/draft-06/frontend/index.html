@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoC Grafana Faro</title>
-     <link rel="stylesheet" href="style.css">
+    <title>PoC Grafana Faro - Corrigido</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -20,7 +20,8 @@
                 Debug<br>
                 Status do Faro: <span id="faro-status">Inicializando...</span><br>
                 Requests enviados: <span id="request-count">0</span><br>
-                Último erro: <span id="last-error">Nenhum</span>
+                Último erro: <span id="last-error">Nenhum</span><br>
+                Trace ativo: <span id="active-trace">Nenhum</span>
             </div>
 
             <div id="message-container"></div>
@@ -66,127 +67,242 @@
 
     <script>
         const FARO_COLLECTOR_URL = 'http://localhost:12347/collect';
-        let faroInitialized = false;
+        const API_BASE_URL = 'http://localhost:3002/api';
+
         let faroInstance = null;
-        let requestCount = 0;
-        let spanCount = 0;
         let tracer = null;
         let trace = null;
         let context = null;
+        let isInitialized = false;
 
-        const faroStatusEl = document.getElementById('faro-status');
-        const tracingStatusEl = document.getElementById('tracing-status');
-        const requestCountEl = document.getElementById('request-count');
-        const spanCountEl = document.getElementById('span-count');
-        const lastErrorEl = document.getElementById('last-error');
-        const lastTraceIdEl = document.getElementById('last-trace-id');
-        const lastSpanNameEl = document.getElementById('last-span-name');
+        let requestCount = 0;
+        let spanCount = 0;
+
+        const FAILURE_CONFIG = {
+            enabled: true,
+            loadItemsFailureRate: 0.3, // 30% de chance de falha
+            addItemFailureRate: 0.2,   // 20% de chance de falha
+            updateItemFailureRate: 0.15, // 15% de chance de falha
+            deleteItemFailureRate: 0.1   // 10% de chance de falha
+        };
+
+
+        const debugElements = {
+            status: document.getElementById('faro-status'),
+            requests: document.getElementById('request-count'),
+            error: document.getElementById('last-error'),
+            trace: document.getElementById('active-trace')
+        };
+
+        let editingIndex = null;
 
         function updateDebugInfo(status, error = null) {
-            if (faroStatusEl) faroStatusEl.textContent = status;
-            if (requestCountEl) requestCountEl.textContent = requestCount;
-            if (spanCountEl) spanCountEl.textContent = spanCount;
-            if (error && lastErrorEl) {
-                lastErrorEl.textContent = error;
+            if (debugElements.status) debugElements.status.textContent = status;
+            if (debugElements.requests) debugElements.requests.textContent = requestCount;
+            if (error && debugElements.error) debugElements.error.textContent = error;
+        }
+
+        function updateActiveTrace(traceId = null) {
+            if (debugElements.trace) {
+                debugElements.trace.textContent = traceId ? traceId.substring(0, 16) + '...' : 'Nenhum';
             }
         }
 
-        function updateTracingInfo(status, traceId = null, spanName = null) {
-            if (tracingStatusEl) tracingStatusEl.textContent = status;
-            if (traceId && lastTraceIdEl) lastTraceIdEl.textContent = traceId;
-            if (spanName && lastSpanNameEl) lastSpanNameEl.textContent = spanName;
-        }
-
-        function createSpan(spanName, operation, attributes = {}) {
-            return new Promise((resolve, reject) => {
-                if (!tracer) {
-                    console.warn('Tracer não disponível, executando operação sem span');
-                    resolve(operation());
-                    return;
-                }
-
-                const span = tracer.startSpan(spanName, {
-                    attributes: {
-                        'component': 'item-manager',
-                        'operation.type': spanName.split('.')[0],
-                        ...attributes
-                    }
-                });
-
-                spanCount++;
-                updateTracingInfo('Ativo', span.spanContext().traceId, spanName);
-
-                console.log(`🔍 Span criado: ${spanName}`, {
-                    traceId: span.spanContext().traceId,
-                    spanId: span.spanContext().spanId,
-                    attributes
-                });
-
-                context.with(trace.setSpan(context.active(), span), async () => {
-                    try {
-                        const startTime = Date.now();
-                        const result = await operation();
-
-                        span.setAttributes({
-                            'operation.success': true,
-                            'operation.duration_ms': Date.now() - startTime
-                        });
-
-                        if (trace && trace.SpanStatusCode) {
-                            span.setStatus({ code: trace.SpanStatusCode.OK });
-                        } else {
-                            span.setStatus({ code: 1 }); // 1 = OK
-                        }
-
-                        resolve(result);
-                    } catch (error) {
-                        span.setAttributes({
-                            'operation.success': false,
-                            'error.message': error.message,
-                            'error.type': error.constructor.name
-                        });
-
-                        if (trace && trace.SpanStatusCode) {
-                            span.setStatus({
-                                code: trace.SpanStatusCode.ERROR,
-                                message: error.message
-                            });
-                        } else {
-                            span.setStatus({
-                                code: 2, // 2 = ERROR
-                                message: error.message
-                            });
-                        }
-
-                        console.error(`❌ Erro no span ${spanName}:`, error);
-                        reject(error);
-                    } finally {
-                        span.end();
-                        console.log(`✅ Span finalizado: ${spanName}`);
-                    }
-                });
-            });
+        function debugLog(message, data = {}) {
+            console.log(`[FARO] ${message}`, data);
         }
 
         let sdksLoaded = 0;
-        const totalSDKs = 2;
+        const requiredSDKs = ['GrafanaFaroWebSdk', 'GrafanaFaroWebTracing'];
 
-        function checkSDKsLoaded() {
-            sdksLoaded++;
-            
-            if (sdksLoaded >= totalSDKs) {
-                setTimeout(initializeFaroWithTracing, 100); 
-            }
-            console.log(`SDK carregado ${sdksLoaded}/${totalSDKs}`);
+        function shouldSimulateFailure(operation) {
+            if (!FAILURE_CONFIG.enabled) return false;
+
+            const rate = FAILURE_CONFIG[`${operation}FailureRate`] || 0;
+            return Math.random() < rate;
         }
 
-        // Inicializar Faro com tracing corretamente
-        function initializeFaroWithTracing() {
-            if (faroInitialized || !window.GrafanaFaroWebSdk || !window.GrafanaFaroWebTracing) {
-                console.log('SDKs não carregados ainda:', {
+        function simulateFailure(operation) {
+            const errors = {
+                loadItems: new Error('Falha simulada ao carregar itens - timeout de conexão'),
+                addItem: new Error('Falha simulada ao adicionar item - servidor indisponível'),
+                updateItem: new Error('Falha simulada ao atualizar item - conflito de dados'),
+                deleteItem: new Error('Falha simulada ao excluir item - permissão negada')
+            };
+
+            const error = errors[operation] || new Error(`Falha simulada na operação: ${operation}`);
+            error.isSimulated = true;
+            error.operation = operation;
+
+            logEvent(`Falha simulada: ${operation}`, 'error', {
+                operation,
+                simulated: true,
+                errorMessage: error.message
+            });
+
+            throw error;
+        }
+        function checkSDKsReady() {
+            const loaded = requiredSDKs.filter(sdk => window[sdk]);
+            sdksLoaded = loaded.length;
+
+            debugLog(`SDKs carregados: ${sdksLoaded}/${requiredSDKs.length}`, {
+                loaded,
+                GrafanaFaroWebSdk: !!window.GrafanaFaroWebSdk,
+                GrafanaFaroWebTracing: !!window.GrafanaFaroWebTracing
+            });
+
+            if (sdksLoaded === requiredSDKs.length && !isInitialized) {
+                setTimeout(initializeFaro, 500);
+            }
+        }
+
+        // CORREÇÃO: Função melhorada para injeção de headers
+        function injectTraceHeaders() {
+            debugLog('🔍 Tentando injetar headers de trace...');
+
+            if (!faroInstance?.api?.getOTEL) {
+                debugLog('❌ OTEL não disponível');
+                return { 'Content-Type': 'application/json' };
+            }
+
+            try {
+                const otel = faroInstance.api.getOTEL();
+                const activeContext = otel.context.active();
+
+                // Verificar se há span ativo
+                const activeSpan = otel.trace.getActiveSpan(activeContext);
+                if (activeSpan) {
+                    const spanContext = activeSpan.spanContext();
+                    debugLog('📊 Span ativo encontrado:', {
+                        traceId: spanContext.traceId,
+                        spanId: spanContext.spanId
+                    });
+                    updateActiveTrace(spanContext.traceId);
+                } else {
+                    debugLog('⚠️ Nenhum span ativo encontrado');
+                    updateActiveTrace();
+                }
+
+                // Verificar se propagation está disponível
+                if (!otel.propagation || !otel.propagation.inject) {
+                    debugLog('❌ Propagation não disponível no OTEL');
+
+                    // Fallback: tentar construir traceparent manualmente
+                    if (activeSpan) {
+                        const spanContext = activeSpan.spanContext();
+                        const traceparent = `00-${spanContext.traceId}-${spanContext.spanId}-01`;
+
+                        debugLog('🔧 Usando fallback manual para traceparent:', { traceparent });
+
+                        return {
+                            'Content-Type': 'application/json',
+                            'traceparent': traceparent
+                        };
+                    }
+
+                    return { 'Content-Type': 'application/json' };
+                }
+
+                // Criar carrier vazio para injeção
+                const carrier = {};
+
+                // Injetar contexto no carrier
+                otel.propagation.inject(activeContext, carrier);
+
+                // Construir headers finais
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...carrier
+                };
+
+                if (headers.traceparent) {
+                    debugLog('✅ Headers de trace injetados:', {
+                        traceparent: headers.traceparent,
+                        tracestate: headers.tracestate || 'none'
+                    });
+                } else {
+                    debugLog('❌ Falha ao injetar traceparent');
+                }
+
+                return headers;
+
+            } catch (error) {
+                debugLog('❌ Erro ao injetar headers:', error.message);
+
+                // Tentar fallback em caso de erro
+                try {
+                    const otel = faroInstance.api.getOTEL();
+                    const activeContext = otel.context.active();
+                    const activeSpan = otel.trace.getActiveSpan(activeContext);
+
+                    if (activeSpan) {
+                        const spanContext = activeSpan.spanContext();
+                        const traceparent = `00-${spanContext.traceId}-${spanContext.spanId}-01`;
+
+                        debugLog('🔧 Usando fallback após erro:', { traceparent });
+
+                        return {
+                            'Content-Type': 'application/json',
+                            'traceparent': traceparent
+                        };
+                    }
+                } catch (fallbackError) {
+                    debugLog('❌ Fallback também falhou:', fallbackError.message);
+                }
+
+                return { 'Content-Type': 'application/json' };
+            }
+        }
+
+        // CORREÇÃO: Função consistente para todas as requisições
+        async function makeTracedRequest(url, options = {}) {
+            const headers = injectTraceHeaders();
+
+            const finalOptions = {
+                ...options,
+                headers: {
+                    ...headers,
+                    ...options.headers
+                }
+            };
+
+            debugLog(`🌐 Fazendo requisição para ${url}`, {
+                method: finalOptions.method || 'GET',
+                headers: finalOptions.headers
+            });
+
+            try {
+                const response = await fetch(url, finalOptions);
+
+                // Log do trace ID retornado pelo backend
+                const backendTraceId = response.headers.get('X-Trace-Id');
+                const backendSpanId = response.headers.get('X-Span-Id');
+
+                if (backendTraceId) {
+                    debugLog('🔗 Trace ID do backend recebido:', {
+                        backendTraceId,
+                        backendSpanId
+                    });
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return response;
+            } catch (error) {
+                debugLog('❌ Erro na requisição:', error.message);
+                throw error;
+            }
+        }
+
+        function initializeFaro() {
+            if (isInitialized || !window.GrafanaFaroWebSdk || !window.GrafanaFaroWebTracing) {
+                debugLog('Inicialização abortada', {
+                    initialized: isInitialized,
                     webSdk: !!window.GrafanaFaroWebSdk,
-                    tracing: !!window.GrafanaFaroWebTracing,
-                    faroInitialized
+                    tracing: !!window.GrafanaFaroWebTracing
                 });
                 return;
             }
@@ -195,12 +311,12 @@
                 const { initializeFaro, getWebInstrumentations } = window.GrafanaFaroWebSdk;
                 const { TracingInstrumentation } = window.GrafanaFaroWebTracing;
 
-                console.log('🚀 Inicializando Faro com tracing...');
+                debugLog('Inicializando Faro...');
 
                 faroInstance = initializeFaro({
                     app: {
-                        name: 'gerenciador-itens',
-                        version: '1.0.0',
+                        name: 'frontend',
+                        version: '0.0.1',
                         environment: 'development'
                     },
                     url: FARO_COLLECTOR_URL,
@@ -212,453 +328,390 @@
                         ...getWebInstrumentations({
                             captureConsole: true,
                             webVitals: true,
-                            performance: true,
-                            webVitalsThresholds: {
-                                // Configurar thresholds para Web Vitals
-                                CLS: { good: 0.1, poor: 0.25 },
-                                FID: { good: 100, poor: 300 },
-                                FCP: { good: 1800, poor: 3000 },
-                                LCP: { good: 2500, poor: 4000 },
-                                TTFB: { good: 800, poor: 1800 }
-                            }
+                            performance: true
                         }),
                         new TracingInstrumentation({
                             enabled: true,
                             tracingOrigins: [/localhost/, /127\.0\.0\.1/],
-                            propagateTraceHeaderCorsUrls: [/localhost/, /127\.0\.0\.1/]
+                            propagateTraceHeaderCorsUrls: [/http:\/\/localhost:3002.*$/],
+                            ignoreIncomingRequestHook: () => false,
+                            ignoreOutgoingRequestHook: (url) => {
+                                return url.includes('localhost:12347');
+                            }
                         })
                     ],
                     beforeSend: (payload) => {
-                        console.log('📤 Faro payload:', payload.type, payload);
-
-                        // Se for uma medição (Web Vitals), adicionar labels necessários
-                        if (payload.type === 'measurement') {
-                            // Adicionar os labels que a query espera
-                            payload.meta = {
-                                ...payload.meta,
-                                kind: 'measurement',
-                                Environment: 'local',
-                                Application: 'gerenciador-itens'
-                            };
-                        }
-
                         requestCount++;
+                        debugLog(`📤 Enviando payload: ${payload.type}`);
                         updateDebugInfo('Ativo - Enviando dados');
                         return payload;
                     }
                 });
 
-                // Configurar tracing manual
-                if (faroInstance?.api?.getOTEL) {
-                    const otel = faroInstance.api.getOTEL();
-                    trace = otel.trace;
-                    context = otel.context;
-                    tracer = trace.getTracer('item-manager', '1.0.0');
+                setupTracing();
+                isInitialized = true;
+                updateDebugInfo('✅ Ativo - Inicializado');
 
-                    // Verificar se SpanStatusCode está disponível
-                    console.log('🔍 Verificando OTEL API:', {
-                        trace: !!trace,
-                        context: !!context,
-                        tracer: !!tracer,
-                        spanStatusCode: !!trace?.SpanStatusCode
-                    });
-
-                    updateTracingInfo('Ativo - Tracer configurado');
-                    console.log('✅ Tracer configurado com sucesso');
-                } else {
-                    updateTracingInfo('Erro - OTEL não disponível');
-                    console.error('❌ OTEL API não disponível');
-                }
-
-                faroInitialized = true;
-                updateDebugInfo('Ativo - Inicializado com tracing');
-                captureWebVitals();
-                // Criar span de inicialização
-                if (tracer) {
-                    createSpan('app.initialize', async () => {
-                        console.log('Aplicação inicializada com tracing');
-                        return true;
-                    }, {
-                        'app.version': '1.0.0',
-                        'page.url': window.location.href
-                    });
-                }
+                debugLog('✅ Faro inicializado com sucesso');
 
             } catch (error) {
-                console.error('❌ Erro ao inicializar Grafana Faro:', error);
-                updateDebugInfo('Erro na inicialização', error.message);
-                updateTracingInfo('Erro na inicialização');
+                debugLog('❌ Erro na inicialização', { error: error.message });
+                updateDebugInfo('❌ Erro na inicialização', error.message);
             }
         }
 
-        function captureWebVitals() {
-            // Função para enviar métricas no formato correto
-            function sendWebVital(name, value, rating = 'good') {
-                const vitalsData = {
-                    type: 'measurement',
-                    name: name.toLowerCase(),
-                    value: value,
-                    rating: rating,
-                    timestamp: Date.now(),
-                    kind: 'measurement',
-                    Environment: 'local',
-                    Application: 'gerenciador-itens'
-                };
+        function setupTracing() {
+            if (!faroInstance?.api?.getOTEL) {
+                debugLog('❌ OTEL API não disponível no Faro');
+                return;
+            }
 
-                console.log(`📊 Web Vital capturado: ${name} = ${value}ms (${rating})`);
+            try {
+                const otel = faroInstance.api.getOTEL();
 
-                if (faroInstance?.api) {
+                trace = otel.trace;
+                context = otel.context;
+                tracer = trace?.getTracer('item-manager-frontend', '0.0.1');
+
+                debugLog('✅ Tracing configurado', {
+                    trace: !!trace,
+                    context: !!context,
+                    tracer: !!tracer
+                });
+            } catch (error) {
+                debugLog('❌ Erro ao configurar tracing', { error: error.message });
+            }
+        }
+
+        // CORREÇÃO: Span creation melhorada
+        function createSpan(spanName, operation, attributes = {}) {
+            if (!tracer) {
+                debugLog(`⚠️ Executando ${spanName} sem tracing`);
+                return Promise.resolve(operation());
+            }
+
+            return new Promise((resolve, reject) => {
+                const span = tracer.startSpan(spanName, {
+                    attributes: {
+                        'service.name': 'frontend',
+                        'component': 'item-manager',
+                        ...attributes
+                    }
+                });
+
+                spanCount++;
+                const spanContext = span.spanContext();
+                debugLog(`📊 Span criado: ${spanName}`, {
+                    traceId: spanContext.traceId,
+                    spanId: spanContext.spanId
+                });
+
+                // Executar operação no contexto do span
+                context.with(trace.setSpan(context.active(), span), async () => {
                     try {
-                        // Enviar como log estruturado no formato logfmt
-                        faroInstance.api.pushLog([
-                            `kind=measurement Environment=local Application=gerenciador-itens ` +
-                            `metric=${name.toLowerCase()} value=${value} rating=${rating} ` +
-                            `timestamp=${vitalsData.timestamp}`
-                        ], {
-                            level: 'info',
-                            context: {
-                                kind: 'measurement',
-                                Environment: 'local',
-                                Application: 'gerenciador-itens',
-                                metric: name.toLowerCase(),
-                                [name.toLowerCase()]: value // Para permitir unwrap na query
-                            }
-                        });
+                        const startTime = performance.now();
+                        const result = await operation();
 
-                        // Também enviar como medição
-                        faroInstance.api.pushMeasurement({
-                            type: 'web_vital',
-                            name: name.toLowerCase(),
-                            value: value,
-                            attributes: {
-                                kind: 'measurement',
-                                Environment: 'local',
-                                Application: 'gerenciador-itens',
-                                rating: rating,
-                                metric_type: 'web_vital'
-                            }
+                        span.setAttributes({
+                            'operation.success': true,
+                            'operation.duration_ms': Math.round(performance.now() - startTime)
                         });
+                        span.setStatus({ code: 1 }); // OK
+
+                        resolve(result);
                     } catch (error) {
-                        console.error('Erro ao enviar Web Vital:', error);
+                        span.setAttributes({
+                            'operation.success': false,
+                            'error.message': error.message,
+                            'error.name': error.name
+                        });
+                        span.setStatus({ code: 2, message: error.message }); // ERROR
+
+                        debugLog(`❌ Erro no span ${spanName}`, { error: error.message });
+                        reject(error);
+                    } finally {
+                        span.end();
+                        debugLog(`🏁 Span finalizado: ${spanName}`);
                     }
-                }
-            }
-
-            // Capturar métricas usando Performance Observer se disponível
-            if ('PerformanceObserver' in window) {
-                try {
-                    // Web Vitals: LCP (Largest Contentful Paint)
-                    new PerformanceObserver((list) => {
-                        for (const entry of list.getEntries()) {
-                            if (entry.entryType === 'largest-contentful-paint') {
-                                const rating = entry.startTime <= 2500 ? 'good' :
-                                    entry.startTime <= 4000 ? 'needs-improvement' : 'poor';
-                                sendWebVital('LCP', Math.round(entry.startTime), rating);
-                            }
-                        }
-                    }).observe({ entryTypes: ['largest-contentful-paint'] });
-
-                    // Web Vitals: FID (First Input Delay)
-                    new PerformanceObserver((list) => {
-                        for (const entry of list.getEntries()) {
-                            if (entry.entryType === 'first-input') {
-                                const fid = entry.processingStart - entry.startTime;
-                                const rating = fid <= 100 ? 'good' :
-                                    fid <= 300 ? 'needs-improvement' : 'poor';
-                                sendWebVital('FID', Math.round(fid), rating);
-                            }
-                        }
-                    }).observe({ entryTypes: ['first-input'] });
-
-                    // Web Vitals: CLS (Cumulative Layout Shift)
-                    let clsValue = 0;
-                    new PerformanceObserver((list) => {
-                        for (const entry of list.getEntries()) {
-                            if (!entry.hadRecentInput) {
-                                clsValue += entry.value;
-                            }
-                        }
-                    }).observe({ entryTypes: ['layout-shift'] });
-
-                    // Enviar CLS quando a página for "hidden"
-                    document.addEventListener('visibilitychange', () => {
-                        if (document.visibilityState === 'hidden') {
-                            const rating = clsValue <= 0.1 ? 'good' :
-                                clsValue <= 0.25 ? 'needs-improvement' : 'poor';
-                            sendWebVital('CLS', Math.round(clsValue * 1000) / 1000, rating);
-                        }
-                    });
-
-                } catch (error) {
-                    console.error('Erro ao configurar PerformanceObserver:', error);
-                }
-            }
-
-            // Fallback usando Navigation Timing API
-            window.addEventListener('load', () => {
-                setTimeout(() => {
-                    if (window.performance && window.performance.timing) {
-                        const timing = window.performance.timing;
-
-                        // TTFB (Time to First Byte)
-                        const ttfb = timing.responseStart - timing.requestStart;
-                        const ttfbRating = ttfb <= 800 ? 'good' :
-                            ttfb <= 1800 ? 'needs-improvement' : 'poor';
-                        sendWebVital('TTFB', ttfb, ttfbRating);
-
-                        // FCP aproximado (First Contentful Paint)
-                        const fcp = timing.domContentLoadedEventEnd - timing.navigationStart;
-                        const fcpRating = fcp <= 1800 ? 'good' :
-                            fcp <= 3000 ? 'needs-improvement' : 'poor';
-                        sendWebVital('FCP', fcp, fcpRating);
-
-                        // Page Load Time total
-                        const loadTime = timing.loadEventEnd - timing.navigationStart;
-                        sendWebVital('PLT', loadTime, loadTime <= 3000 ? 'good' : 'poor');
-                    }
-                }, 0);
+                });
             });
         }
 
-        // Helper para logs estruturados
         function logEvent(message, level = 'info', context = {}) {
             const timestamp = new Date().toISOString();
             const logData = {
-                level,
-                context: {
-                    component: 'item-manager',
-                    timestamp,
-                    url: window.location.href,
-                    userAgent: navigator.userAgent.substring(0, 100),
-                    ...context
-                }
+                timestamp,
+                component: 'item-manager-frontend',
+                url: window.location.href,
+                level: level,
+                message: message,
+                job: 'frontend',
+                service: 'item-manager',
+                environment: 'development',
+                ...context
             };
 
-            console[level](`[${timestamp}] ${message}`, logData.context);
+            console[level === 'warn' ? 'warn' : level === 'error' ? 'error' : 'log'](`[${timestamp}] ${message}`, logData);
 
             if (faroInstance?.api) {
                 try {
                     faroInstance.api.pushLog([message], {
-                        level,
-                        context: logData.context
-                    });
-                    updateDebugInfo('Ativo - Log enviado');
-                } catch (error) {
-                    updateDebugInfo('Erro no envio', error.message);
-                }
-            }
-        }
-
-        // Helper para métricas customizadas
-        function recordMetric(name, value, attributes = {}) {
-            const metricData = {
-                name,
-                value,
-                timestamp: Date.now(),
-                attributes: {
-                    component: 'item-manager',
-                    environment: 'development',
-                    ...attributes
-                }
-            };
-
-            console.log(`📊 Métrica: ${name} = ${value}`, metricData.attributes);
-
-            if (faroInstance?.api) {
-                try {
-                    faroInstance.api.pushMeasurement({
-                        type: 'counter',
-                        name,
-                        value,
-                        attributes: metricData.attributes
+                        level: level,
+                        context: logData
                     });
                 } catch (error) {
-                    console.error('Erro ao enviar métrica:', error);
+                    console.error('❌ Erro ao enviar log para Faro:', error);
                 }
             }
         }
 
-        const API_BASE_URL = 'http://localhost:3002/api';
-        let editingIndex = null;
-
-        // Elementos do DOM
-        const itemForm = document.getElementById('item-form');
-        const itemsContainer = document.getElementById('items-container');
-        const messageContainer = document.getElementById('message-container');
-        const submitBtn = document.getElementById('submit-btn');
-        const cancelBtn = document.getElementById('cancel-btn');
-
-        // Inicializar a aplicação
-        document.addEventListener('DOMContentLoaded', function () {
-            logEvent('Aplicação iniciada', 'info', {
-                pageUrl: window.location.href,
-                referrer: document.referrer || 'direct'
-            });
-            loadItems();
-            setupEventListeners();
-        });
-
-        // Configurar event listeners
-        function setupEventListeners() {
-            if (itemForm) {
-                itemForm.addEventListener('submit', handleFormSubmit);
-            }
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', cancelEdit);
-            }
-        }
-
-        // Mostrar mensagens para o usuário
         function showMessage(message, type = 'success') {
+            const messageContainer = document.getElementById('message-container');
             if (!messageContainer) return;
 
             messageContainer.innerHTML = `
-        <div class="message ${type}">
-            ${message}
-        </div>
-    `;
-
-            logEvent('Mensagem exibida ao usuário', 'info', {
-                message,
-                messageType: type
-            });
-
-            setTimeout(() => {
-                messageContainer.innerHTML = '';
-            }, 5000);
-        }
-
-        // Carregar todos os itens com span
-        async function loadItems() {
-            if (!tracer) {
-                // Fallback sem tracing
-                return loadItemsWithoutSpan();
-            }
-
-            return createSpan('items.load', async () => {
-                if (itemsContainer) {
-                    itemsContainer.innerHTML = '<div class="loading">Carregando itens...</div>';
-                }
-                logEvent('Iniciando carregamento de itens', 'info');
-
-                const response = await fetch(`${API_BASE_URL}/items`);
-
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-                }
-
-                const items = await response.json();
-                displayItems(items);
-
-                logEvent('Itens carregados com sucesso', 'info', {
-                    itemCount: items.length
-                });
-
-                recordMetric('items_loaded', items.length);
-                return items;
-            }, {
-                'http.method': 'GET',
-                'http.url': `${API_BASE_URL}/items`
-            });
-        }
-
-        // Fallback para carregar itens sem tracing
-        async function loadItemsWithoutSpan() {
-            try {
-                if (itemsContainer) {
-                    itemsContainer.innerHTML = '<div class="loading">Carregando itens...</div>';
-                }
-                logEvent('Iniciando carregamento de itens (sem tracing)', 'info');
-
-                const response = await fetch(`${API_BASE_URL}/items`);
-
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-                }
-
-                const items = await response.json();
-                displayItems(items);
-
-                logEvent('Itens carregados com sucesso', 'info', {
-                    itemCount: items.length
-                });
-
-                recordMetric('items_loaded', items.length);
-                return items;
-            } catch (error) {
-                const errorMessage = `Erro ao carregar itens: ${error.message}`;
-                logEvent(errorMessage, 'error', {
-                    errorType: 'fetch_error',
-                    httpStatus: error.message.includes('HTTP') ? error.message : null
-                });
-
-                if (itemsContainer) {
-                    itemsContainer.innerHTML = `
-                <div class="message error">
-                    Erro ao carregar itens. Verifique se o servidor está rodando na porta 3002.
-                    <br><small>Erro: ${error.message}</small>
+                <div class="message ${type}">
+                    ${message}
                 </div>
             `;
-                }
 
-                recordMetric('items_load_error', 1, {
-                    errorType: 'fetch_error',
-                    errorMessage: error.message
-                });
-                throw error;
-            }
+            logEvent('Mensagem exibida', 'info', { message, type });
+            setTimeout(() => messageContainer.innerHTML = '', 5000);
         }
 
-        // Exibir itens na tela
-        function displayItems(items) {
-            if (!itemsContainer) return;
-
-            if (items.length === 0) {
-                itemsContainer.innerHTML = `
-            <div class="no-items">
-                📦 Nenhum item encontrado. Adicione o primeiro item!
-            </div>
-        `;
-                return;
-            }
-
-            const itemsHTML = items.map((item, index) => `
-        <div class="item-card">
-            <div class="item-header">
-                <div>
-                    <h4 class="item-title">${escapeHtml(item.name || 'Item sem nome')}</h4>
-                    <p style="color: #6c757d; margin: 5px 0;">
-                        ${escapeHtml(item.description || 'Sem descrição')}
-                    </p>
-                    ${item.price ? `<p style="color: #28a745; font-weight: 600; font-size: 1.1rem;">R$ ${parseFloat(item.price).toFixed(2)}</p>` : ''}
-                </div>
-                <div class="item-actions">
-                    <button class="btn btn-warning" onclick="editItem(${index})">
-                        ✏️ Editar
-                    </button>
-                    <button class="btn btn-danger" onclick="deleteItem(${index})">
-                        🗑️ Excluir
-                    </button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-
-            itemsContainer.innerHTML = itemsHTML;
-        }
-
-        // Função para escapar HTML e prevenir XSS
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
 
-        // Manipular envio do formulário com span
+        async function loadItems() {
+            const operation = async () => {
+                // Simular falha se configurado
+                if (shouldSimulateFailure('loadItems')) {
+                    simulateFailure('loadItems');
+                }
+
+                const itemsContainer = document.getElementById('items-container');
+                if (itemsContainer) {
+                    itemsContainer.innerHTML = '<div class="loading">Carregando itens...</div>';
+                }
+
+                const response = await makeTracedRequest(`${API_BASE_URL}/items`);
+                const items = await response.json();
+
+                displayItems(items);
+                logEvent('Itens carregados', 'info', { count: items.length });
+                return items;
+            };
+
+            if (tracer) {
+                return createSpan('items.load', operation, {
+                    'http.method': 'GET',
+                    'http.url': `${API_BASE_URL}/items`,
+                    'operation.type': 'database.query'
+                }).catch(error => {
+                    const isSimulated = error.isSimulated || false;
+                    showMessage(`Erro ao carregar itens: ${error.message}`, 'error');
+                    logEvent('Erro no carregamento', 'error', {
+                        error: error.message,
+                        simulated: isSimulated,
+                        operation: 'loadItems'
+                    });
+
+                    const itemsContainer = document.getElementById('items-container');
+                    if (itemsContainer) {
+                        itemsContainer.innerHTML = `<div class="error-message">❌ Erro: ${error.message}</div>`;
+                    }
+                });
+            } else {
+                return operation().catch(error => {
+                    const isSimulated = error.isSimulated || false;
+                    showMessage(`Erro ao carregar itens: ${error.message}`, 'error');
+                    logEvent('Erro no carregamento', 'error', {
+                        error: error.message,
+                        simulated: isSimulated,
+                        operation: 'loadItems'
+                    });
+                });
+            }
+        }
+
+        function displayItems(items) {
+            const itemsContainer = document.getElementById('items-container');
+            if (!itemsContainer) return;
+
+            if (items.length === 0) {
+                itemsContainer.innerHTML = `
+                    <div class="no-items">
+                        📦 Nenhum item encontrado. Adicione o primeiro item!
+                    </div>
+                `;
+                return;
+            }
+
+            const itemsHTML = items.map((item, index) => `
+                <div class="item-card">
+                    <div class="item-header">
+                        <div>
+                            <h4 class="item-title">${escapeHtml(item.name || 'Item sem nome')}</h4>
+                            <p style="color: #6c757d; margin: 5px 0;">
+                                ${escapeHtml(item.description || 'Sem descrição')}
+                            </p>
+                            ${item.price ? `<p style="color: #28a745; font-weight: 600; font-size: 1.1rem;">R$ ${parseFloat(item.price).toFixed(2)}</p>` : ''}
+                        </div>
+                        <div class="item-actions">
+                            <button class="btn btn-warning" onclick="editItem(${index})">
+                                ✏️ Editar
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteItem(${index})">
+                                🗑️ Excluir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            itemsContainer.innerHTML = itemsHTML;
+        }
+
+        async function addItem(itemData) {
+            const operation = async () => {
+                const response = await makeTracedRequest(`${API_BASE_URL}/items`, {
+                    method: 'POST',
+                    body: JSON.stringify(itemData)
+                });
+
+                showMessage('Item adicionado com sucesso!');
+                logEvent('Item adicionado', 'info', { name: itemData.name });
+
+                return response.json();
+            };
+
+            if (tracer) {
+                return createSpan('items.add', operation, {
+                    'http.method': 'POST',
+                    'http.url': `${API_BASE_URL}/items`,
+                    'item.name': itemData.name,
+                    'operation.type': 'database.create'
+                });
+            } else {
+                return operation();
+            }
+        }
+
+        // CORREÇÃO: Usar makeTracedRequest
+        async function updateItem(index, itemData) {
+            const operation = async () => {
+                const response = await makeTracedRequest(`${API_BASE_URL}/items/${index}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(itemData)
+                });
+
+                showMessage('Item atualizado com sucesso!');
+                logEvent('Item atualizado', 'info', { index, name: itemData.name });
+                return response.json();
+            };
+
+            if (tracer) {
+                return createSpan('items.update', operation, {
+                    'http.method': 'PUT',
+                    'http.url': `${API_BASE_URL}/items/${index}`,
+                    'item.index': index,
+                    'item.name': itemData.name,
+                    'operation.type': 'database.update'
+                });
+            } else {
+                return operation();
+            }
+        }
+
+        // CORREÇÃO: Usar makeTracedRequest
+        async function deleteItem(index) {
+            if (!confirm('Tem certeza que deseja excluir este item?')) {
+                logEvent('Exclusão cancelada', 'info', { index });
+                return;
+            }
+
+            const operation = async () => {
+                const response = await makeTracedRequest(`${API_BASE_URL}/items/${index}`, {
+                    method: 'DELETE'
+                });
+
+                showMessage('Item excluído com sucesso!');
+                await loadItems();
+
+                logEvent('Item excluído', 'info', { index });
+                return true;
+            };
+
+            if (tracer) {
+                return createSpan('items.delete', operation, {
+                    'http.method': 'DELETE',
+                    'http.url': `${API_BASE_URL}/items/${index}`,
+                    'item.index': index,
+                    'operation.type': 'database.delete'
+                }).catch(error => {
+                    showMessage(`Erro ao excluir: ${error.message}`, 'error');
+                    logEvent('Erro na exclusão', 'error', { index, error: error.message });
+                });
+            } else {
+                return operation().catch(error => {
+                    showMessage(`Erro ao excluir: ${error.message}`, 'error');
+                    logEvent('Erro na exclusão', 'error', { index, error: error.message });
+                });
+            }
+        }
+
+        // CORREÇÃO: Usar makeTracedRequest
+        function editItem(index) {
+            const operation = async () => {
+                const response = await makeTracedRequest(`${API_BASE_URL}/items`);
+                const items = await response.json();
+                const item = items[index];
+
+                if (item) {
+                    document.getElementById('item-name').value = item.name || '';
+                    document.getElementById('item-description').value = item.description || '';
+                    document.getElementById('item-price').value = item.price || '';
+
+                    editingIndex = index;
+                    document.getElementById('submit-btn').textContent = 'Atualizar Item';
+                    document.getElementById('cancel-btn').style.display = 'inline-block';
+
+                    document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
+
+                    logEvent('Edição iniciada', 'info', { index, name: item.name });
+                }
+                return item;
+            };
+
+            if (tracer) {
+                createSpan('items.edit_start', operation, {
+                    'item.index': index,
+                    'operation.type': 'ui.edit_start'
+                }).catch(error => logEvent('Erro na edição', 'error', { index, error: error.message }));
+            } else {
+                operation().catch(error => logEvent('Erro na edição', 'error', { index, error: error.message }));
+            }
+        }
+
+        function cancelEdit() {
+            resetForm();
+            logEvent('Edição cancelada', 'info');
+        }
+
+        function resetForm() {
+            document.getElementById('item-form').reset();
+            editingIndex = null;
+            document.getElementById('submit-btn').textContent = 'Adicionar Item';
+            document.getElementById('cancel-btn').style.display = 'none';
+        }
+
         async function handleFormSubmit(e) {
             e.preventDefault();
 
-            const formData = new FormData(itemForm);
+            const formData = new FormData(e.target);
             const itemData = {
                 name: formData.get('name').trim(),
                 description: formData.get('description').trim(),
@@ -667,696 +720,126 @@
 
             if (!itemData.name) {
                 showMessage('Nome do item é obrigatório!', 'error');
-                logEvent('Validação falhou - nome vazio', 'warn', { formData: itemData });
+                logEvent('Validação falhou', 'warn', { reason: 'nome_vazio' });
                 return;
             }
 
-            const operation = editingIndex !== null ? 'update' : 'create';
-
-            if (!tracer) {
-                // Fallback sem tracing
-                return handleFormSubmitWithoutSpan(itemData, operation);
-            }
-
-            return createSpan(`items.${operation}`, async () => {
-                try {
-                    if (editingIndex !== null) {
-                        await updateItem(editingIndex, itemData);
-                    } else {
-                        await addItem(itemData);
-                    }
-
-                    resetForm();
-                    await loadItems();
-                    return itemData;
-                } catch (error) {
-                    const errorMessage = `Erro na operação ${operation}: ${error.message}`;
-                    logEvent(errorMessage, 'error', {
-                        operation,
-                        errorType: 'operation_error',
-                        httpStatus: error.message.includes('HTTP') ? error.message : null
-                    });
-
-                    showMessage(`Erro na operação. Tente novamente. (${error.message})`, 'error');
-                    recordMetric('item_operation_error', 1, {
-                        operation,
-                        errorType: 'operation_error'
-                    });
-                    throw error;
-                }
-            }, {
-                'item.name': itemData.name,
-                'item.operation': operation,
-                'item.index': editingIndex
-            });
-        }
-
-        // Fallback para envio sem tracing
-        async function handleFormSubmitWithoutSpan(itemData, operation) {
             try {
-                logEvent(`Iniciando operação: ${operation} (sem tracing)`, 'info', {
-                    operation,
-                    itemData: { ...itemData, price: itemData.price || 'null' }
-                });
-
                 if (editingIndex !== null) {
-                    await updateItemWithoutSpan(editingIndex, itemData);
+                    await updateItem(editingIndex, itemData);
                 } else {
-                    await addItemWithoutSpan(itemData);
+                    await addItem(itemData);
                 }
 
                 resetForm();
                 await loadItems();
-                return itemData;
             } catch (error) {
-                const errorMessage = `Erro na operação ${operation}: ${error.message}`;
-                logEvent(errorMessage, 'error', {
-                    operation,
-                    errorType: 'operation_error',
-                    httpStatus: error.message.includes('HTTP') ? error.message : null
-                });
-
-                showMessage(`Erro na operação. Tente novamente. (${error.message})`, 'error');
-                recordMetric('item_operation_error', 1, {
-                    operation,
-                    errorType: 'operation_error'
-                });
-                throw error;
+                showMessage(`Erro na operação: ${error.message}`, 'error');
+                logEvent('Erro na operação', 'error', { error: error.message });
             }
         }
 
-        // Adicionar novo item com span
-        async function addItem(itemData) {
-            if (!tracer) {
-                return addItemWithoutSpan(itemData);
-            }
-
-            return createSpan('items.add', async () => {
-                const response = await fetch(`${API_BASE_URL}/items`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(itemData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-                }
-
-                showMessage('Item adicionado com sucesso!');
-                logEvent('Item adicionado com sucesso', 'info', { itemName: itemData.name });
-                return response.json();
-            }, {
-                'http.method': 'POST',
-                'http.url': `${API_BASE_URL}/items`,
-                'item.name': itemData.name
-            });
-        }
-
-        // Fallback para adicionar item sem span
-        async function addItemWithoutSpan(itemData) {
-            const response = await fetch(`${API_BASE_URL}/items`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(itemData)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-            }
-
-            showMessage('Item adicionado com sucesso!');
-            logEvent('Item adicionado com sucesso', 'info', { itemName: itemData.name });
-            return response.json();
-        }
-
-        // Atualizar item existente com span
-        async function updateItem(index, itemData) {
-            if (!tracer) {
-                return updateItemWithoutSpan(index, itemData);
-            }
-
-            return createSpan('items.update', async () => {
-                const response = await fetch(`${API_BASE_URL}/items/${index}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(itemData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-                }
-
-                showMessage('Item atualizado com sucesso!');
-                logEvent('Item atualizado com sucesso', 'info', {
-                    itemIndex: index,
-                    itemName: itemData.name
-                });
-                return response.json();
-            }, {
-                'http.method': 'PUT',
-                'http.url': `${API_BASE_URL}/items/${index}`,
-                'item.index': index,
-                'item.name': itemData.name
-            });
-        }
-
-        // Fallback para atualizar item sem span
-        async function updateItemWithoutSpan(index, itemData) {
-            const response = await fetch(`${API_BASE_URL}/items/${index}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(itemData)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-            }
-
-            showMessage('Item atualizado com sucesso!');
-            logEvent('Item atualizado com sucesso', 'info', {
-                itemIndex: index,
-                itemName: itemData.name
-            });
-            return response.json();
-        }
-
-        // Editar item com span
-        function editItem(index) {
-            if (!tracer) {
-                return editItemWithoutSpan(index);
-            }
-
-            createSpan('items.edit_start', async () => {
-                logEvent('Iniciando edição de item', 'info', { itemIndex: index });
-
-                const response = await fetch(`${API_BASE_URL}/items`);
-                const items = await response.json();
-
-                const item = items[index];
-                if (item) {
-                    if (document.getElementById('item-name')) {
-                        document.getElementById('item-name').value = item.name || '';
-                    }
-                    if (document.getElementById('item-description')) {
-                        document.getElementById('item-description').value = item.description || '';
-                    }
-                    if (document.getElementById('item-price')) {
-                        document.getElementById('item-price').value = item.price || '';
-                    }
-
-                    editingIndex = index;
-                    if (submitBtn) {
-                        submitBtn.textContent = 'Atualizar Item';
-                    }
-                    if (cancelBtn) {
-                        cancelBtn.style.display = 'inline-block';
-                    }
-
-                    const formSection = document.querySelector('.form-section');
-                    if (formSection) {
-                        formSection.scrollIntoView({ behavior: 'smooth' });
-                    }
-
-                    recordMetric('item_edit_started', 1, { itemIndex: index });
-                    logEvent('Formulário preenchido para edição', 'info', {
-                        itemIndex: index,
-                        itemName: item.name
-                    });
-                }
-                return item;
-            }, {
-                'item.index': index,
-                'operation.type': 'edit_prepare'
-            }).catch(error => {
-                logEvent('Erro ao carregar item para edição', 'error', {
-                    itemIndex: index,
-                    errorMessage: error.message
-                });
-            });
-        }
-
-        // Fallback para editar item sem span
-        function editItemWithoutSpan(index) {
-            logEvent('Iniciando edição de item (sem tracing)', 'info', { itemIndex: index });
-
-            fetch(`${API_BASE_URL}/items`)
-                .then(response => response.json())
-                .then(items => {
-                    const item = items[index];
-                    if (item) {
-                        if (document.getElementById('item-name')) {
-                            document.getElementById('item-name').value = item.name || '';
-                        }
-                        if (document.getElementById('item-description')) {
-                            document.getElementById('item-description').value = item.description || '';
-                        }
-                        if (document.getElementById('item-price')) {
-                            document.getElementById('item-price').value = item.price || '';
-                        }
-
-                        editingIndex = index;
-                        if (submitBtn) {
-                            submitBtn.textContent = 'Atualizar Item';
-                        }
-                        if (cancelBtn) {
-                            cancelBtn.style.display = 'inline-block';
-                        }
-
-                        const formSection = document.querySelector('.form-section');
-                        if (formSection) {
-                            formSection.scrollIntoView({ behavior: 'smooth' });
-                        }
-
-                        recordMetric('item_edit_started', 1, { itemIndex: index });
-                        logEvent('Formulário preenchido para edição', 'info', {
-                            itemIndex: index,
-                            itemName: item.name
-                        });
-                    }
-                })
-                .catch(error => {
-                    logEvent('Erro ao carregar item para edição', 'error', {
-                        itemIndex: index,
-                        errorMessage: error.message
-                    });
-                });
-        }
-
-        // Deletar item com span
-        async function deleteItem(index) {
-            if (!confirm('Tem certeza que deseja excluir este item?')) {
-                logEvent('Exclusão cancelada pelo usuário', 'info', { itemIndex: index });
-                return;
-            }
-
-            if (!tracer) {
-                return deleteItemWithoutSpan(index);
-            }
-
-            return createSpan('items.delete', async () => {
-                logEvent('Iniciando exclusão de item', 'info', { itemIndex: index });
-
-                const response = await fetch(`${API_BASE_URL}/items/${index}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-                }
-
-                showMessage('Item excluído com sucesso!');
-                await loadItems();
-
-                recordMetric('item_delete_success', 1, { itemIndex: index });
-                logEvent('Item excluído com sucesso', 'info', { itemIndex: index });
-                return true;
-            }, {
-                'http.method': 'DELETE',
-                'http.url': `${API_BASE_URL}/items/${index}`,
-                'item.index': index
-            }).catch(error => {
-                const errorMessage = `Erro ao excluir item: ${error.message}`;
-                logEvent(errorMessage, 'error', {
-                    itemIndex: index,
-                    errorType: 'delete_error',
-                    httpStatus: error.message.includes('HTTP') ? error.message : null
-                });
-
-                showMessage(`Erro ao excluir item. Tente novamente. (${error.message})`, 'error');
-                recordMetric('item_delete_error', 1, {
-                    itemIndex: index,
-                    errorType: 'delete_error'
-                });
-            });
-        }
-
-        // Fallback para deletar item sem span
-        async function deleteItemWithoutSpan(index) {
-            try {
-                logEvent('Iniciando exclusão de item (sem tracing)', 'info', { itemIndex: index });
-
-                const response = await fetch(`${API_BASE_URL}/items/${index}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`);
-                }
-
-                showMessage('Item excluído com sucesso!');
-                await loadItems();
-
-                recordMetric('item_delete_success', 1, { itemIndex: index });
-                logEvent('Item excluído com sucesso', 'info', { itemIndex: index });
-                return true;
-            } catch (error) {
-                const errorMessage = `Erro ao excluir item: ${error.message}`;
-                logEvent(errorMessage, 'error', {
-                    itemIndex: index,
-                    errorType: 'delete_error',
-                    httpStatus: error.message.includes('HTTP') ? error.message : null
-                });
-
-                showMessage(`Erro ao excluir item. Tente novamente. (${error.message})`, 'error');
-                recordMetric('item_delete_error', 1, {
-                    itemIndex: index,
-                    errorType: 'delete_error'
-                });
-                throw error;
-            }
-        }
-
-        // Cancelar edição
-        function cancelEdit() {
-            logEvent('Edição cancelada pelo usuário', 'info');
-            resetForm();
-        }
-
-        // Resetar formulário
-        function resetForm() {
-            if (itemForm) {
-                itemForm.reset();
-            }
-            editingIndex = null;
-            if (submitBtn) {
-                submitBtn.textContent = 'Adicionar Item';
-            }
-            if (cancelBtn) {
-                cancelBtn.style.display = 'none';
-            }
-        }
-
-        // Capturar erros não tratados
+        // Handlers de erro
         window.addEventListener('error', (event) => {
-            logEvent('Erro JavaScript não tratado', 'error', {
+            logEvent('Erro JavaScript', 'error', {
                 message: event.message,
                 filename: event.filename,
                 lineno: event.lineno,
-                colno: event.colno,
-                stack: event.error?.stack?.substring(0, 500)
+                colno: event.colno
             });
         });
 
-        // Capturar promises rejeitadas
         window.addEventListener('unhandledrejection', (event) => {
-            logEvent('Promise rejeitada não tratada', 'error', {
-                reason: event.reason?.toString?.()?.substring(0, 200) || 'Unknown',
-                stack: event.reason?.stack?.substring(0, 500)
+            logEvent('Promise rejeitada', 'error', {
+                reason: event.reason?.toString?.()?.substring(0, 200) || 'Unknown'
             });
         });
 
-        window.addEventListener('load', () => {
-            if (!tracer) {
-                // Fallback sem tracing
-                if (window.performance && window.performance.timing) {
-                    const timing = window.performance.timing;
-                    const loadTime = timing.loadEventEnd - timing.navigationStart;
-                    const domReady = timing.domContentLoadedEventEnd - timing.navigationStart;
-
-                    recordMetric('page_load_time_ms', loadTime, {
-                        domReadyMs: domReady,
-                        pageType: 'main'
-                    });
-
-                    logEvent('Performance da página medida (sem tracing)', 'info', {
-                        loadTimeMs: loadTime,
-                        domReadyMs: domReady
-                    });
-                }
-                return;
-            }
-
-            createSpan('page.load_complete', async () => {
-                if (window.performance && window.performance.timing) {
-                    const timing = window.performance.timing;
-                    const loadTime = timing.loadEventEnd - timing.navigationStart;
-                    const domReady = timing.domContentLoadedEventEnd - timing.navigationStart;
-
-                    recordMetric('page_load_time_ms', loadTime, {
-                        domReadyMs: domReady,
-                        pageType: 'main'
-                    });
-
-                    logEvent('Performance da página medida', 'info', {
-                        loadTimeMs: loadTime,
-                        domReadyMs: domReady
-                    });
-
-                    return { loadTime, domReady };
-                }
-                return null;
-            }, {
-                'page.type': 'main',
-                'performance.measured': true
+        // INIT
+        document.addEventListener('DOMContentLoaded', function () {
+            logEvent('🚀 Aplicação iniciada', 'info', {
+                url: window.location.href,
+                referrer: document.referrer || 'direct'
             });
+
+            const itemForm = document.getElementById('item-form');
+            const cancelBtn = document.getElementById('cancel-btn');
+
+            if (itemForm) itemForm.addEventListener('submit', handleFormSubmit);
+            if (cancelBtn) cancelBtn.addEventListener('click', cancelEdit);
+
+            loadItems();
+            checkSDKsReady();
         });
 
-        // Teste de tracing manual - para garantir que está funcionando
-        function testTracing() {
-            if (!tracer) {
-                console.warn('⚠️ Tracer não disponível para teste');
-                showMessage('Tracer não disponível para teste. Verifique se o Faro foi inicializado.', 'error');
-                return;
-            }
-
-            createSpan('test.manual_trace', async () => {
-                console.log('🧪 Executando teste de tracing manual...');
-
-                // Simular uma operação assíncrona
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                console.log('✅ Teste de tracing concluído com sucesso!');
-                return 'test_success';
-            }, {
-                'test.type': 'manual',
-                'test.timestamp': new Date().toISOString()
-            }).then(() => {
-                showMessage('Teste de tracing executado! Verifique o console.', 'success');
-            }).catch(error => {
-                console.error('❌ Erro no teste de tracing:', error);
-                showMessage('Erro no teste de tracing!', 'error');
-            });
-        }
-
-        console.log('🔧 Para testar o tracing manualmente, execute: testTracing()');
-        window.testTracing = testTracing;
-
-        setInterval(() => {
-            if (faroInitialized && tracer && spanCount > 0) {
-                updateTracingInfo(`Ativo - ${spanCount} spans criados`,
-                    lastTraceIdEl ? lastTraceIdEl.textContent : '',
-                    lastSpanNameEl ? lastSpanNameEl.textContent : '');
-            }
-        }, 5000);
-
-        // Função para debug do estado do Faro
-        function debugFaroState() {
-            console.log('🔍 Estado atual do Faro:', {
-                faroInitialized,
-                faroInstance: !!faroInstance,
-                tracer: !!tracer,
-                trace: !!trace,
-                context: !!context,
+        // Debug helpers
+        window.faroDebug = {
+            state: () => ({
+                initialized: isInitialized,
+                hasFaroInstance: !!faroInstance,
+                hasTracer: !!tracer,
                 spanCount,
                 requestCount,
-                sdksLoaded,
-                webSdk: !!window.GrafanaFaroWebSdk,
-                tracingSdk: !!window.GrafanaFaroWebTracing
-            });
+                sdksLoaded: `${sdksLoaded}/${requiredSDKs.length}`
+            }),
 
-            if (faroInstance) {
-                console.log('📊 Instância Faro:', faroInstance);
-                if (faroInstance.api) {
-                    console.log('🔌 API Faro disponível:', Object.keys(faroInstance.api));
+            testSpan: () => {
+                if (!tracer) {
+                    console.warn('⚠️ Tracer não disponível');
+                    return;
                 }
-            }
 
-            return {
-                initialized: faroInitialized,
-                tracingReady: !!tracer,
-                spansCreated: spanCount
-            };
-        }
+                createSpan('test.manual', async () => {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    console.log('✅ Teste de span executado com sucesso!');
+                    return 'success';
+                }, { 'test.type': 'manual' });
+            },
 
-        // Função para forçar criação de spans de teste
-        function createTestSpans() {
-            if (!tracer) {
-                console.warn('⚠️ Tracer não disponível');
-                return;
-            }
-
-            // Criar múltiplos spans de teste
-            const testOperations = [
-                { name: 'test.operation_1', duration: 50 },
-                { name: 'test.operation_2', duration: 100 },
-                { name: 'test.operation_3', duration: 25 }
-            ];
-
-            testOperations.forEach((op, index) => {
-                setTimeout(() => {
-                    createSpan(op.name, async () => {
-                        await new Promise(resolve => setTimeout(resolve, op.duration));
-                        console.log(`✅ Span de teste ${index + 1} concluído`);
-                        return `test_result_${index + 1}`;
-                    }, {
-                        'test.index': index,
-                        'test.duration_expected': op.duration,
-                        'test.batch': 'manual_test'
+            testConnection: async () => {
+                try {
+                    const response = await fetch(FARO_COLLECTOR_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ test: 'connection', timestamp: Date.now() })
                     });
-                }, index * 200);
-            });
 
-            console.log(`🧪 Criando ${testOperations.length} spans de teste...`);
-        }
-
-        // Função para verificar conectividade com o collector
-        async function testCollectorConnection() {
-            try {
-                console.log('🔗 Testando conexão com o collector...');
-
-                const response = await fetch(FARO_COLLECTOR_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        test: 'connection',
-                        timestamp: new Date().toISOString()
-                    })
-                });
-
-                console.log('📡 Resposta do collector:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    headers: Object.fromEntries(response.headers.entries())
-                });
-
-                if (response.ok) {
-                    showMessage('Conexão com collector OK!', 'success');
-                } else {
-                    showMessage(`Erro de conexão: ${response.status}`, 'error');
+                    console.log('🌐 Teste de conexão:', response.status, response.statusText);
+                    return response.ok;
+                } catch (error) {
+                    console.error('❌ Erro na conexão:', error.message);
+                    return false;
                 }
+            },
 
-                return response.ok;
-            } catch (error) {
-                console.error('❌ Erro ao testar collector:', error);
-                showMessage(`Erro ao conectar com collector: ${error.message}`, 'error');
-                return false;
+            testTraceHeaders: () => {
+                const headers = injectTraceHeaders();
+                console.log('🔍 Headers de teste:', headers);
+                return headers;
             }
-        }
-
-        // Adicionar funções de debug ao window para acesso via console
-        window.debugFaroState = debugFaroState;
-        window.createTestSpans = createTestSpans;
-        window.testCollectorConnection = testCollectorConnection;
-
-        // Função para relatório de diagnóstico completo
-        function diagnosticReport() {
-            console.log('📋 RELATÓRIO DE DIAGNÓSTICO DO TRACING');
-            console.log('=====================================');
-
-            const state = debugFaroState();
-
-            console.log('1. Status dos SDKs:');
-            console.log(`   ✅ Web SDK: ${!!window.GrafanaFaroWebSdk}`);
-            console.log(`   ✅ Tracing SDK: ${!!window.GrafanaFaroWebTracing}`);
-            console.log(`   📊 SDKs carregados: ${sdksLoaded}/${totalSDKs}`);
-
-            console.log('\n2. Status da inicialização:');
-            console.log(`   🚀 Faro inicializado: ${state.initialized}`);
-            console.log(`   🔍 Tracer disponível: ${state.tracingReady}`);
-            console.log(`   📈 Spans criados: ${state.spansCreated}`);
-            console.log(`   📤 Requests enviados: ${requestCount}`);
-
-            console.log('\n3. Configuração:');
-            console.log(`   🔗 Collector URL: ${FARO_COLLECTOR_URL}`);
-            console.log(`   🏷️ App name: gerenciador-itens`);
-
-            console.log('\n4. Comandos disponíveis:');
-            console.log('   testTracing() - Executar teste de span');
-            console.log('   createTestSpans() - Criar múltiplos spans de teste');
-            console.log('   testCollectorConnection() - Testar conexão com collector');
-            console.log('   debugFaroState() - Ver estado detalhado');
-
-            if (!state.initialized) {
-                console.log('\n⚠️  PROBLEMAS DETECTADOS:');
-                console.log('   - Faro não foi inicializado corretamente');
-                console.log('   - Verifique se os SDKs foram carregados');
-                console.log('   - Verifique o console para erros de carregamento');
-            }
-
-            if (!state.tracingReady) {
-                console.log('\n⚠️  TRACING NÃO DISPONÍVEL:');
-                console.log('   - Tracer não foi configurado');
-                console.log('   - OTEL API pode não estar disponível');
-                console.log('   - Verifique se TracingInstrumentation foi carregada');
-            }
-
-            return state;
-        }
-
-        window.diagnosticReport = diagnosticReport;
-
-        // Auto-executar diagnóstico após 3 segundos
-        setTimeout(() => {
-            console.log('\n🔍 Executando diagnóstico automático...');
-            diagnosticReport();
-        }, 3000);
-
-        // Listener para quando os SDKs terminarem de carregar
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                if (sdksLoaded < totalSDKs) {
-                    console.warn('⚠️ Nem todos os SDKs foram carregados ainda');
-                    updateDebugInfo('Aguardando SDKs...', 'SDKs não carregados completamente');
-                }
-            }, 2000);
-        });
-
-        // Handler para carregamento dos scripts Faro
-        window.onFaroWebSdkLoad = function () {
-            console.log('✅ Faro Web SDK carregado');
-            checkSDKsLoaded();
         };
 
-        window.onFaroTracingLoad = function () {
-            console.log('✅ Faro Web Tracing carregado');
-            checkSDKsLoaded();
-        };
-
-        // Fallback se os scripts não carregarem
         setTimeout(() => {
-            if (!faroInitialized) {
-                console.warn('⚠️ Faro não foi inicializado após 5 segundos');
-                updateDebugInfo('Timeout na inicialização', 'SDKs não carregaram em 5s');
-                updateTracingInfo('Erro - Timeout');
-
-                // Tentar inicializar mesmo assim
-                if (window.GrafanaFaroWebSdk && window.GrafanaFaroWebTracing) {
-                    console.log('🔄 Tentando inicialização forçada...');
-                    initializeFaroWithTracing();
-                }
+            if (!isInitialized && sdksLoaded < requiredSDKs.length) {
+                debugLog('⏰ Timeout: SDKs não carregaram completamente', {
+                    loaded: sdksLoaded,
+                    required: requiredSDKs.length
+                });
+                updateDebugInfo('❌ Erro - SDKs não carregaram', 'Timeout após 5s');
             }
         }, 5000);
 
-        console.log('🚀 Sistema de tracing carregado. Execute diagnosticReport() para verificar o status.');
+        debugLog('📜 Script carregado. Use window.faroDebug para debug.');
     </script>
-    <!-- Carregar Grafana Faro SDK -->
+
     <script src="https://unpkg.com/@grafana/faro-web-sdk@^1.0.0/dist/bundle/faro-web-sdk.iife.js"
-        onerror="console.error('Erro ao carregar Faro Web SDK'); document.getElementById('faro-status').textContent = 'Erro - SDK não carregado';"></script>
+        onload="checkSDKsReady()"
+        onerror="console.error('Erro ao carregar Faro Web SDK'); document.getElementById('faro-status').textContent = 'Erro faro-web-sdk.iife.js';"></script>
 
     <script src="https://unpkg.com/@grafana/faro-web-tracing@^1.0.0/dist/bundle/faro-web-tracing.iife.js"
-        onerror="console.error('Erro ao carregar Faro Web Tracing'); updateDebugInfo('Erro - Tracing SDK não carregado', 'SDK não encontrado');"
+        onload="checkSDKsReady()"
+        onerror="console.error('Erro ao carregar Faro Web Tracing'); updateDebugInfo('Erro faro-web-tracing.iife.js');"
         crossorigin></script>
-
 </body>
 
 </html>

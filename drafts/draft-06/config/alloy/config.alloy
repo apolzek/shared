@@ -1,3 +1,4 @@
+// Configuração corrigida do Alloy para unificar traces
 
 faro.receiver "frontend_telemetry" {
   server {
@@ -9,41 +10,72 @@ faro.receiver "frontend_telemetry" {
 
   output {
     logs    = [loki.write.default.receiver]
-    traces  = [otelcol.exporter.otlp.tempo.input]
+    traces  = [otelcol.processor.batch.faro_traces.input]  // Processar antes de enviar
   }
 
   extra_log_labels = {
     service_name = "frontend",
     environment  = "local",
     source       = "faro",
-    // Adicionar labels que a query espera
     Environment  = "local",
     Application  = "gerenciador-itens",
   }
 }
 
-
-
-loki.write "default" {
-  endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
-    
-    // Headers opcionais
-    headers = {
-      "X-Custom-Header" = "faro-logs",
-    }
+// Receiver OTLP para traces do backend
+otelcol.receiver.otlp "backend_traces" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
   }
   
-  external_labels = {
-    cluster     = "local-dev",
-    environment = "development",
-    source      = "faro",
-    Environment = "local",
-    Application = "gerenciador-itens",
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces  = [otelcol.processor.batch.backend_traces.input]
   }
 }
 
-// Configuração do Tempo (Traces)
+// Processadores de batch separados para melhor controle
+otelcol.processor.batch "faro_traces" {
+  output {
+    traces = [otelcol.processor.attributes.add_service_info.input]
+  }
+  
+  send_batch_size = 100
+  timeout = "1s"
+}
+
+otelcol.processor.batch "backend_traces" {
+  output {
+    traces = [otelcol.processor.attributes.add_service_info.input]
+  }
+  
+  send_batch_size = 100
+  timeout = "1s"
+}
+
+// Adicionar informações de serviço padronizadas
+otelcol.processor.attributes "add_service_info" {
+  action {
+    key    = "deployment.environment"
+    value  = "local"
+    action = "upsert"
+  }
+  
+  action {
+    key    = "service.namespace"  
+    value  = "gerenciador-itens"
+    action = "upsert"
+  }
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// Exportador para Tempo
 otelcol.exporter.otlp "tempo" {
   client {
     endpoint = "http://tempo:4317"
@@ -51,13 +83,30 @@ otelcol.exporter.otlp "tempo" {
       insecure = true
     }
     
-    // Headers opcionais
     headers = {
-      "X-Custom-Header" = "faro-traces",
+      "X-Custom-Header" = "unified-traces",
     }
   }
 }
 
+// Configuração do Loki (Logs)
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+    
+    headers = {
+      "X-Custom-Header" = "faro-logs",
+    }
+  }
+  
+  external_labels = {
+    cluster     = "local-dev",
+    environment = "development", 
+    source      = "faro",
+    Environment = "local",
+    Application = "gerenciador-itens",
+  }
+}
 
 // Descoberta de serviços para métricas do próprio Alloy
 discovery.docker "containers" {
@@ -96,7 +145,7 @@ prometheus.remote_write "metrics_write" {
 	}
 }
 
-// Logging para debug (remover em produção)
+// Logging para debug
 logging {
   level = "info"
   format = "logfmt"
