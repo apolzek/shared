@@ -42,10 +42,11 @@ graph TD
 - docker-compose
 - java
 - maven/spring-boot
+- mise(optional)
   
 ### Reproducing
 
-up docker compose services
+up docker compose services and java applications
 ```
 docker compose up -d
 cd apps/comment-service && mvn spring-boot:run
@@ -63,6 +64,14 @@ labels:
     - logging=promtail
 ```
 
+install java/maven using mise
+```
+mise use -g java@openjdk-21
+mise use -g java@21
+mise install maven
+mise use maven
+```
+
 **Grafana**: http://localhost:3000 
 
 ### Results
@@ -72,3 +81,8 @@ The lab successfully demonstrated the integration of observability tools, with m
 ![image](./.image/grafana.png) 
 
 ### References
+
+```
+https://start.spring.io/
+https://opentelemetry.io/docs/zero-code/java/spring-boot-starter/
+```
