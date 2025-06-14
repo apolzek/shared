@@ -33,7 +33,6 @@ graph TD
     G -->|datasource| D
 
     %% Layout fixes (optional)
-
 ```
 
 ### Prerequisites
@@ -46,14 +45,22 @@ graph TD
   
 ### Reproducing
 
+up docker compose services
 ```
 docker compose up -d
 cd apps/comment-service && mvn spring-boot:run
 cd apps/comment-service && mvn spring-boot:run
 ```
 
+testing application using curl
 ```
 curl http://localhost:8080/api/v1/posts/1
+```
+
+to collect logs add in compose service
+```
+labels:
+    - logging=promtail
 ```
 
 **Grafana**: http://localhost:3000 

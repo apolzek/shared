@@ -44,6 +44,9 @@ services:
       - ./grafana:/etc/grafana/provisioning/datasources
       - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
       - ./grafana/dashboards/node-exporter.json:/var/lib/grafana/dashboards/node-exporter.json
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"  
     networks:
       - monitoring
 
@@ -53,7 +56,7 @@ services:
 
   node_exporter:
     container_name: node_exporter
-    image: prom/node-exporter:latest
+    image: prom/node-exporter@sha256:d00a542e409ee618a4edc67da14dd48c5da66726bbd5537ab2af9c1dfc442c8a
     hostname: omv-exporter
     restart: unless-stopped
     ports:
@@ -69,6 +72,9 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
       - /:/host:ro,rslave
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"  
     networks:
       - monitoring
 
@@ -104,7 +110,7 @@ services:
   ###########
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo@sha256:21811e7c2e4b34494f42f40d267382f3dd3b4970b5de79dfa7da07ba7cab045d
     command: [ "-config.file=/etc/tempo.yml" ]
     volumes:
       - ./tempo/tempo.yml:/etc/tempo.yml
@@ -120,7 +126,7 @@ services:
   ##########
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki@sha256:a74594532eec4cc313401beedc4dd2708c43674c032084b1aeb87c14a5be1745
     command: -config.file=/etc/loki/local-config.yaml
     ports:
       - "3100:3100"
