@@ -1,0 +1,29 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+
+processors:
+  logscore:
+    prefix: "custom-"
+    sample_ratio: 0.1
+    post_endpoint: "http://localhost:8000"
+
+
+exporters:
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    # traces:
+    #   receivers: [otlp]
+    #   processors: [simpleprocessor]
+    #   exporters: [debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [logscore]
+      exporters: [debug]

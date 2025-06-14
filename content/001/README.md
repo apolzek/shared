@@ -114,3 +114,10 @@ make down service=traefik_reverse_proxy
 ### Results
 
 When it comes to setting up load balancers and reverse proxies, there are a lot of ways to go about it, and each tool has its own quirks and strengths. Some options, like Caddy, Envoy, and Traefik, give you the freedom to choose from a variety of configuration file formats, such as YAML, TOML, and more. This makes it easier to pick the one that suits your style or fits better with your infrastructure.On the flip side, tools like HAProxy and Nginx stick to their own formats and configurations, which might take a little more getting used to. They may feel a bit more rigid, but they make up for it with power and reliability, often becoming the go-to choices for certain situations. At the end of the day, choosing the right tool comes down to factors like ease of use, flexibility, and your specific performance needs. Understanding what each tool does best and how it likes to be configured helps you make the right call for building a scalable and efficient web infrastructure.
+
+### References
+
+```
+https://rafaeldalsenter.medium.com/docker-compose-nginx-aplica%C3%A7%C3%A3o-web-banco-de-dados-d8f6f33adfd2
+https://dev.to/a8hok/reverse-proxy-using-varnish-b27
+```

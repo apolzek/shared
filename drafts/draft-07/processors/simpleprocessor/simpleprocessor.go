@@ -5,6 +5,7 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/ptrace"
 	"go.opentelemetry.io/collector/processor"
 	"go.opentelemetry.io/collector/processor/processorhelper"
@@ -19,6 +20,41 @@ type Config struct {
 type simpleProcessor struct {
 	consumer.Traces
 	config *Config
+}
+
+func (p *simpleProcessor) processLogs(ctx context.Context, ld plog.Logs) (plog.Logs, error) {
+	rls := ld.ResourceLogs()
+	for i := 0; i < rls.Len(); i++ {
+		scopeLogs := rls.At(i).ScopeLogs()
+		for j := 0; j < scopeLogs.Len(); j++ {
+			logRecords := scopeLogs.At(j).LogRecords()
+			for k := 0; k < logRecords.Len(); k++ {
+				logRecord := logRecords.At(k)
+				logRecord.Body().SetStr(p.config.Prefix + logRecord.Body().Str())
+			}
+		}
+	}
+	return ld, nil
+}
+
+func newLogsProcessor(
+	ctx context.Context,
+	set processor.Settings,
+	cfg component.Config,
+	next consumer.Logs,
+) (processor.Logs, error) {
+	sp := &simpleProcessor{
+		config: cfg.(*Config),
+	}
+
+	return processorhelper.NewLogs(
+		ctx,
+		set,
+		cfg,
+		next,
+		sp.processLogs,
+		processorhelper.WithCapabilities(consumer.Capabilities{MutatesData: true}),
+	)
 }
 
 // processTraces manipula os traces
@@ -57,12 +93,12 @@ func newTracesProcessor(
 	)
 }
 
-// NewFactory retorna a factory do processador
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
 		component.MustNewType("simpleprocessor"),
 		createDefaultConfig,
 		processor.WithTraces(newTracesProcessor, component.StabilityLevelDevelopment),
+		processor.WithLogs(newLogsProcessor, component.StabilityLevelDevelopment), // <-- ESSENCIAL
 	)
 }
 

@@ -19,3 +19,8 @@ service:
       receivers: [otlp]
       processors: [simpleprocessor]
       exporters: [debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [simpleprocessor]
+      exporters: [debug]
