@@ -13,35 +13,27 @@ This lab aims to test and integrate key observability tools including Prometheus
 | Prometheus              | Power your metrics and alerting with the leading open-source monitoring solution                                         | 9090 |
 | Node exporter           | The node_exporter is designed to monitor the host system                                                                 | 9100 |
 | OpenTelemetry Collector | The OpenTelemetry Collector offers a vendor-agnostic implementation of how to receive, process and export telemetry data | 4317 |
-| Spring Application      | Spring Boot helps you accelerate application development                                                                 | 8080 |
-|                         |
+| Spring Application      | Spring Boot helps you accelerate application development                                                                 | 8082 |
+| Spring Application      | Spring Boot helps you accelerate application development                                                                 | 8082 |
 
 
 ```mermaid
 graph TD
-    A[Node Exporter] -->|metrics| B[Prometheus]
-    B -->|datasource| G[Grafana]
+    B[Prometheus]-->|metrics| A[Node Exporter]
+    G[Grafana] -->|datasource| B
 
-    H[Spring App 1] -->|scrap| J[Promtail]
+    J[Promtail] -->|collect| H[Spring App 1]
     I[Spring App 2] -->|scrap| J
     J -->|logs| C[Loki]
-    C -->|datasource| G
+    G -->|datasource| C
 
     H -->|traces| F[Otel Collector]
     I -->|traces| F
     F -->|traces| D[Tempo]
-    D -->|datasource| G
+    G -->|datasource| D
 
-    %% Optional styling (commented out if unsupported)
-    %% style A fill:#e34c26,stroke:#000,color:#fff
-    %% style B fill:#e34c26,stroke:#000,color:#fff
-    %% style C fill:#f9c846,stroke:#000
-    %% style D fill:#f46d3c,stroke:#000
-    %% style F fill:#000,color:#fff
-    %% style G fill:#f46800,stroke:#000
-    %% style H fill:#8fd18f,stroke:#000
-    %% style I fill:#8fd18f,stroke:#000
-    %% style J fill:#ffdb3a,stroke:#000
+    %% Layout fixes (optional)
+
 ```
 
 ### Prerequisites
