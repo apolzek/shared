@@ -27,4 +27,4 @@ I use this repository to put into practice what I learn on Medium and also to te
 | [009](content/009) | 2025-01-01      | Creating efficient alerts                                                   |
 | [010](content/010) | 2025-01-01      | Setting up a local cluster for kubernetes testing #kind                     | -->
 
-[drafts](https://github.com/apolzek/shared/tree/main/drafts)
+In development 👉 [drafts](https://github.com/apolzek/shared/tree/main/drafts)
