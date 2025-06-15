@@ -26,3 +26,5 @@ I use this repository to put into practice what I learn on Medium and also to te
 | [008](content/008) | 2025-01-01      | Container metrics #docker-compose                                           |
 | [009](content/009) | 2025-01-01      | Creating efficient alerts                                                   |
 | [010](content/010) | 2025-01-01      | Setting up a local cluster for kubernetes testing #kind                     | -->
+
+[drafts](https://github.com/apolzek/shared/tree/main/drafts)
