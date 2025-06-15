@@ -3,6 +3,6 @@ start:
 	docker compose up --build -d
 	# sudo chmod -R 777 data/
 
-destroy:
+stop:
 	docker compose down
 	sudo rm -rf data/
