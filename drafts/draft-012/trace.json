@@ -1,0 +1,28 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": { "stringValue": "demo-service" }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "spans": [
+            {
+              "traceId": "4fd0b6134c1d4a9a85b54834a1a17a5e",
+              "spanId": "4fd0b6134c1d4a9a",
+              "name": "demo-span",
+              "kind": "SPAN_KIND_INTERNAL",
+              "startTimeUnixNano": "1680000000000000000",
+              "endTimeUnixNano": "1680000001000000000"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
