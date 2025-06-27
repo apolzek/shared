@@ -13,8 +13,8 @@ This lab aims to test and integrate key observability tools including Prometheus
 | Prometheus                          | Power your metrics and alerting with the leading open-source monitoring solution                                         | 9090 |
 | Node exporter                       | The node_exporter is designed to monitor the host system                                                                 | 9100 |
 | OpenTelemetry Collector             | The OpenTelemetry Collector offers a vendor-agnostic implementation of how to receive, process and export telemetry data | 4317 |
-| Spring Application(comment-service) | Java Spring application that sends traces to otel collector via HTTP on 4318 development                                                                 | 8082 |
-| Spring Application(post-service)    | Java Spring application that sends traces to otel collector via HTTP on 4318 development                                                                 | 8080 |
+| Spring Application(comment-service) | Java Spring application that sends traces to otel collector via HTTP on 4318 development                                 | 8082 |
+| Spring Application(post-service)    | Java Spring application that sends traces to otel collector via HTTP on 4318 development                                 | 8080 |
 
 
 ```mermaid
@@ -31,18 +31,16 @@ graph TD
     V -->|traces| F
     F -->|traces| D[Tempo]
     G -->|datasource| D
-
-    %% Layout fixes (optional)
 ```
 
 ### Prerequisites
 
 - make
 - docker
-- docker-compose
+- docker compose
 - java
 - maven/spring-boot
-- mise(optional)
+- mise(*optional*)
   
 ### Reproducing
 
@@ -58,13 +56,15 @@ testing application using curl
 curl http://localhost:8080/api/v1/posts/1
 ```
 
+### FYI
+
 to collect logs add in compose service
 ```
 labels:
     - logging=promtail
 ```
 
-install java/maven using mise
+install java/maven using [mise](https://mise.jdx.dev/lang/java.html)
 ```
 mise use -g java@openjdk-21
 mise use -g java@21
@@ -83,6 +83,6 @@ The lab successfully demonstrated the integration of observability tools, with m
 ### References
 
 ```
-https://start.spring.io/
-https://opentelemetry.io/docs/zero-code/java/spring-boot-starter/
+🔗 https://start.spring.io/
+🔗 https://opentelemetry.io/docs/zero-code/java/spring-boot-starter/
 ```
