@@ -11,3 +11,4 @@
 - [ ] Statically and Dynamically Linked Go Binaries
 - [ ] Kubernetes Gateway API
 - [ ] Opentelemetry instrumentation on kubernetes
+- [ ] Stress Testing a Containerized Golang Web Service
