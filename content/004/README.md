@@ -6,13 +6,20 @@ To demonstrate data replication between PostgreSQL primary and replica using Doc
 
 ### Prerequisites
 
-### Prerequisites
-
-- make
 - docker
 - docker compose
+- postgresql-client(*psql)
 
 ### Reproducing
+
+Up docker compose postgre services
+
+```
+cd content/004
+docker compose up
+```
+
+Run psql command to insert data on *postgres_primary*
 
 ```sh
 psql postgres://user:password@localhost:5432/postgres -xc \
@@ -147,6 +154,7 @@ psql postgres://user:password@localhost:5432/postgres -xc \
    SELECT * FROM test_schema.test_table;"
 ```
 
+Check
 
 ```
 psql postgres://user:password@localhost:5432/postgres -xc \
@@ -162,6 +170,53 @@ psql postgres://user:password@localhost:5432/postgres -xc \
    SELECT * FROM test_schema.test_table;"
 ```
 
+Now run psql command to insert data on *postgres_replica*
+
+```
+psql postgres://user:password@localhost:5433/postgres -c "SELECT * FROM test_schema.test_table"
+```
+
+Calculate *replication_delay*
+
+Create Schema and Table on Primary
+```
+psql postgres://user:password@localhost:5432/postgres -c "
+CREATE SCHEMA IF NOT EXISTS test_schema;
+CREATE TABLE IF NOT EXISTS test_schema.test_table (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100),
+  age INT,
+  created_at timestamptz DEFAULT now()
+);
+"
+```
+
+Insert Test Record on Primary
+```
+psql postgres://user:password@localhost:5432/postgres -c "
+INSERT INTO test_schema.test_table (name, age, created_at) VALUES ('Teste Lag', 99, now());
+"
+```
+
+Check Replication Delay on Secondary
+```
+psql postgres://user:password@localhost:5433/postgres -c "
+SELECT
+  name,
+  age,
+  created_at,
+  now() - created_at AS replication_delay
+FROM test_schema.test_table
+WHERE name = 'Teste Lag';
+"
+```
+
 ### Results
 
+Based on the tests performed, it was confirmed that replication between the primary and secondary servers is working correctly. The data inserted into the primary database was successfully reflected on the replica server. The *replication_delay* field showed that the average time for changes to propagate to the replica ranged between 4 and 6 seconds, which is considered good performance for a local Docker-based setup. These results validate the effectiveness of the asynchronous replication implemented in this environment.
+
 ### References
+
+```
+https://medium.com/@eremeykin/how-to-setup-single-primary-postgresql-replication-with-docker-compose-98c48f233bbf
+```
