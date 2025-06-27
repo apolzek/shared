@@ -1,4 +1,4 @@
-## Modern Monitoring Stack (logs, traces and metrics)
+## Modern monitoring stack (logs, traces and metrics)
 
 ### Objectives
 
