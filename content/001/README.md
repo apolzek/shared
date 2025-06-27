@@ -8,7 +8,7 @@ The purpose of this PoC is to simply test and compare the basic configurations o
 
 - make
 - docker
-- docker-compose
+- docker compose
 
 ### Load Balancer and Reverse Proxy
 
@@ -18,10 +18,16 @@ A Reverse Proxy, at its core, acts as an intermediary between client devices and
 
 On the other hand, a Load Balancer is designed to distribute incoming network traffic across multiple servers, ensuring no single server is overwhelmed with requests. This distribution of traffic helps prevent server overloads, reduces response times, and enhances the reliability and availability of web applications. Load Balancers can operate at different layers of the OSI model, directing traffic based on factors like server health, response times, or using predefined algorithms.
 
+**Load Balancing Algorithms:**
+- Round-robin (default in most)
+- Least connections
+- IP hash (session affinity)
+  
+
 ```mermaid
 graph 
-    Client[Client] --> RP[reverse proxy<br/>path-based rule]
-    Client[Client] --> LB[load balancer<br/>rules]
+    Client[Client] --> RP[reverse proxy<br/><i>path-based rule</i>]
+    Client[Client] --> LB[load balancer<br/><i>round-robin</i>]
 
     subgraph "Reverse Proxy"
         RP -->|/front-a| FrontA1[front-a]
@@ -134,6 +140,6 @@ When it comes to setting up load balancers and reverse proxies, there are a lot 
 ### References
 
 ```
-https://rafaeldalsenter.medium.com/docker-compose-nginx-aplica%C3%A7%C3%A3o-web-banco-de-dados-d8f6f33adfd2
-https://dev.to/a8hok/reverse-proxy-using-varnish-b27
+🔗 https://rafaeldalsenter.medium.com/docker-compose-nginx-aplica%C3%A7%C3%A3o-web-banco-de-dados-d8f6f33adfd2
+🔗 https://dev.to/a8hok/reverse-proxy-using-varnish-b27
 ```
