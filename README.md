@@ -1,8 +1,6 @@
 # shared
 
-by: **Vinícius Gomes Batista** (*apolzek*) - Site Reliability Engineer
-
-Where I break things (on purpose) while testing ideas from stuff I read
+*Where I break things (on purpose) while testing ideas from stuff I read*
 
 <img src="images/qrcode.jpeg" alt="qrcode_pix" width="130" height="130">
 
@@ -26,5 +24,3 @@ Where I break things (on purpose) while testing ideas from stuff I read
 | [008](content/008) | 2025-01-01      | Container metrics #docker-compose                                           |
 | [009](content/009) | 2025-01-01      | Creating efficient alerts                                                   |
 | [010](content/010) | 2025-01-01      | Setting up a local cluster for kubernetes testing #kind                     | -->
-
-In development 👉 [drafts](https://github.com/apolzek/shared/tree/main/drafts)

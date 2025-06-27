@@ -18,9 +18,25 @@ A Reverse Proxy, at its core, acts as an intermediary between client devices and
 
 On the other hand, a Load Balancer is designed to distribute incoming network traffic across multiple servers, ensuring no single server is overwhelmed with requests. This distribution of traffic helps prevent server overloads, reduces response times, and enhances the reliability and availability of web applications. Load Balancers can operate at different layers of the OSI model, directing traffic based on factors like server health, response times, or using predefined algorithms.
 
-![image](./.image/drawing.png)
+```mermaid
+graph 
+    Client[Client] --> RP[reverse proxy<br/>path-based rule]
+    Client[Client] --> LB[load balancer<br/>rules]
 
-:warning: The relationship between a Reverse Proxy and a Load Balancer is symbiotic. In many scenarios, a Reverse Proxy is deployed in conjunction with a Load Balancer to create a robust and scalable infrastructure. The Reverse Proxy handles tasks such as SSL termination, caching, and compression, offloading these responsibilities from the backend servers. Meanwhile, the Load Balancer distributes incoming requests among multiple servers, optimizing resource utilization and ensuring high availability.
+    subgraph "Reverse Proxy"
+        RP -->|/front-a| FrontA1[front-a]
+        RP -->|/front-b| FrontB1[front-b]
+        
+    end
+
+    subgraph "Load Balancer"
+        LB --> FrontA2[front-a]
+        LB --> FrontB2[front-b]
+        
+    end
+```
+
+The relationship between a Reverse Proxy and a Load Balancer is symbiotic. In many scenarios, a Reverse Proxy is deployed in conjunction with a Load Balancer to create a robust and scalable infrastructure. The Reverse Proxy handles tasks such as SSL termination, caching, and compression, offloading these responsibilities from the backend servers. Meanwhile, the Load Balancer distributes incoming requests among multiple servers, optimizing resource utilization and ensuring high availability.
 
 ### Reproducing
 
@@ -109,7 +125,7 @@ curl http://localhost/front-b # test
 make down service=traefik_reverse_proxy
 ```
 
-`FYU: Preferably test using curl instead browser`
+`FYI: Preferably test using curl instead browser`
 
 ### Results
 
