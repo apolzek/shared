@@ -2,7 +2,14 @@
 
 ### Objectives
 
-Create an observability ecosystem for PostgreSQL using containers. Ensure visibility into the database and perform load testing.
+Create an observability ecosystem for PostgreSQL using containers. Ensure visibility into the database and perform load testing. Perhaps a good start would be to be able to answer questions like:
+
+- Which queries are taking the longest to execute ? average time per query (p95/p99 also important)
+- What is the usage of server resources (CPU, memory, IOPS, disk) ?
+- Are there any locks or blocking operations in the database ?
+- Which indexes are missing or could be optimized to improve performance ?
+- How is the database connection pool behaving (timeouts, saturation, etc.) ?
+- Are there any unusual spikes in read/write activity or error rates ?
 
 ### Services and ports
 
