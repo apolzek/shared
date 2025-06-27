@@ -210,7 +210,7 @@ SELECT
   age,
   created_at,
   now() - created_at AS replication_delay
-FROM test_schema.test_table
+FROM test_schema.xd_table
 WHERE name = 'Teste Lag';
 "
 ```
