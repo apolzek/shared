@@ -1,8 +1,8 @@
 # shared
 
-by: **Vinícius Gomes Batista** (*apolzek*) - Site Reliability Engineer 🖤
+by: **Vinícius Gomes Batista** (*apolzek*) - Site Reliability Engineer
 
-I use this repository to put into practice what I learn on Medium and also to test some hypotheses and document how to reproduce them. You can send topic suggestions on my telegram **@apolzek**
+Where I break things (on purpose) while testing ideas from stuff I read
 
 <img src="images/qrcode.jpeg" alt="qrcode_pix" width="130" height="130">
 
