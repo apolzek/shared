@@ -68,6 +68,6 @@ By completing this lab, we successfully established a containerized observabilit
 ### References
 
 ```
-https://medium.com/@shaileshkumarmishra/find-slow-queries-in-postgresql-42dddafc8a0e
-https://mxulises.medium.com/simple-prometheus-setup-on-docker-compose-f702d5f98579
+🔗 https://medium.com/@shaileshkumarmishra/find-slow-queries-in-postgresql-42dddafc8a0e
+🔗 https://mxulises.medium.com/simple-prometheus-setup-on-docker-compose-f702d5f98579
 ```

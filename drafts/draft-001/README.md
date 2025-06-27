@@ -1,4 +1,18 @@
+## PostgreSQL Streaming Replication #docker-compose
 
+### Objectives
+
+To demonstrate data replication between PostgreSQL primary and replica using Docker Compose, ensuring that if one database instance goes down, the other can be used transparently by the application with minimal impact or downtime
+
+### Prerequisites
+
+### Prerequisites
+
+- make
+- docker
+- docker compose
+
+### Reproducing
 
 ```sh
 psql postgres://user:password@localhost:5432/postgres -xc \
@@ -147,3 +161,7 @@ psql postgres://user:password@localhost:5432/postgres -xc \
    
    SELECT * FROM test_schema.test_table;"
 ```
+
+### Results
+
+### References
