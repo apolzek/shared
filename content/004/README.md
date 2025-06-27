@@ -1,4 +1,4 @@
-## PostgreSQL Streaming Replication #docker-compose
+## PostgreSQL Streaming Replication
 
 ### Objectives
 
@@ -8,19 +8,25 @@ To demonstrate data replication between PostgreSQL primary and replica using Doc
 
 - docker
 - docker compose
-- postgresql-client(*psql)
+- postgresql-client(*psql*)
 
 ### Reproducing
 
 Up docker compose postgre services
-
 ```
 cd content/004
 docker compose up
 ```
 
-Run psql command to insert data on *postgres_primary*
+Install postgresql-client
+```
+sudo apt install postgresql-client
+```
+> Debian based distros
 
+#### Replication data
+
+Run psql command to insert data on *postgres_primary*
 ```sh
 psql postgres://user:password@localhost:5432/postgres -xc \
   "CREATE SCHEMA IF NOT EXISTS test_schema;
@@ -155,7 +161,6 @@ psql postgres://user:password@localhost:5432/postgres -xc \
 ```
 
 Check
-
 ```
 psql postgres://user:password@localhost:5432/postgres -xc \
   "SELECT schema_name
@@ -171,12 +176,11 @@ psql postgres://user:password@localhost:5432/postgres -xc \
 ```
 
 Now run psql command to insert data on *postgres_replica*
-
 ```
 psql postgres://user:password@localhost:5433/postgres -c "SELECT * FROM test_schema.test_table"
 ```
 
-Calculate *replication_delay*
+#### Calculate *replication_delay*
 
 Create Schema and Table on Primary
 ```
@@ -218,5 +222,5 @@ Based on the tests performed, it was confirmed that replication between the prim
 ### References
 
 ```
-https://medium.com/@eremeykin/how-to-setup-single-primary-postgresql-replication-with-docker-compose-98c48f233bbf
+🔗 https://medium.com/@eremeykin/how-to-setup-single-primary-postgresql-replication-with-docker-compose-98c48f233bbf
 ```
