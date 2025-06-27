@@ -44,27 +44,27 @@ graph TD
   
 ### Reproducing
 
-up docker compose services and java applications
+Up docker compose services and java applications
 ```
 docker compose up -d
 cd apps/comment-service && mvn spring-boot:run
 cd apps/comment-service && mvn spring-boot:run
 ```
 
-testing application using curl
+Testing application using curl
 ```
 curl http://localhost:8080/api/v1/posts/1
 ```
 
 ### FYI
 
-to collect logs add in compose service
+To collect logs add in compose service
 ```
 labels:
     - logging=promtail
 ```
 
-install java/maven using [mise](https://mise.jdx.dev/lang/java.html)
+Install java/maven using [mise](https://mise.jdx.dev/lang/java.html)
 ```
 mise use -g java@openjdk-21
 mise use -g java@21

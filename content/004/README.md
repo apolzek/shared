@@ -160,7 +160,7 @@ psql postgres://user:password@localhost:5432/postgres -xc \
    SELECT * FROM test_schema.test_table;"
 ```
 
-Check
+Checking if data was entered
 ```
 psql postgres://user:password@localhost:5432/postgres -xc \
   "SELECT schema_name
@@ -175,7 +175,7 @@ psql postgres://user:password@localhost:5432/postgres -xc \
    SELECT * FROM test_schema.test_table;"
 ```
 
-Now run psql command to insert data on *postgres_replica*
+Now coming to whether the data was replicated in the *postgres_replica* database
 ```
 psql postgres://user:password@localhost:5433/postgres -c "SELECT * FROM test_schema.test_table"
 ```
@@ -186,7 +186,7 @@ Create Schema and Table on Primary
 ```
 psql postgres://user:password@localhost:5432/postgres -c "
 CREATE SCHEMA IF NOT EXISTS test_schema;
-CREATE TABLE IF NOT EXISTS test_schema.test_table (
+CREATE TABLE IF NOT EXISTS test_schema.xd_table (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100),
   age INT,
@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS test_schema.test_table (
 Insert Test Record on Primary
 ```
 psql postgres://user:password@localhost:5432/postgres -c "
-INSERT INTO test_schema.test_table (name, age, created_at) VALUES ('Teste Lag', 99, now());
+INSERT INTO test_schema.xd_table (name, age, created_at) VALUES ('Teste Lag', 99, now());
 "
 ```
 
