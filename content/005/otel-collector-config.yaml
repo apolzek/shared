@@ -1,0 +1,69 @@
+receivers:
+  filelog:
+    include:
+      - /var/log/sample.log
+    start_at: beginning
+    operators:
+      - type: json_parser
+        id: parse_json
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%dT%H:%M:%SZ'
+        severity:
+          parse_from: attributes.what
+        resource:
+          attributes:
+            - key: app.name
+              value: java-simulator
+
+exporters:
+  debug:
+    verbosity: detailed
+  file/others:
+    path: /tmp/logs.json
+  file/hot:
+    path: /tmp/logs-hot.json
+  file/cold:
+    path: /tmp/logs-cold.json
+
+processors:
+  filter/keep_hot:
+    logs:
+      log_record:
+        - 'attributes["storage_class"] != "hot"'
+  
+  filter/keep_cold:
+    logs:
+      log_record:
+        - 'attributes["storage_class"] != "cold"'
+  
+  filter/keep_others:
+    logs:
+      log_record:
+        - 'attributes["storage_class"] == "hot" or attributes["storage_class"] == "cold"'
+
+service:
+  pipelines:
+    logs/others:
+      receivers: [filelog]
+      processors: [filter/keep_others]
+      exporters: [debug, file/others]
+    
+    logs/hot:
+      receivers: [filelog]
+      processors: [filter/keep_hot]
+      exporters: [file/hot]
+    
+    logs/cold:
+      receivers: [filelog]
+      processors: [filter/keep_cold]
+      exporters: [file/cold]
+
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8888

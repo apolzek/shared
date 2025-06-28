@@ -1,0 +1,6 @@
+{"timestamp": "2025-06-20T19:06:16Z", "who": "user664", "what": "FileUpload", "when": "2025-06-20T19:06:16Z", "where": "UploadService", "why": "User uploaded a document", "storage_class": "hot"}
+{"timestamp": "2025-06-15T23:16:31Z", "who": "user810", "what": "FileDelete", "when": "2025-06-15T23:16:31Z", "where": "FileService", "why": "User deleted a temporary file", "storage_class": "hot"}
+{"timestamp": "2025-06-11T18:24:45Z", "who": "user465", "what": "AccessReport", "when": "2025-06-11T18:24:45Z", "where": "ReportService", "why": "Admin accessed usage report", "storage_class": "hot"}
+{"timestamp": "2025-06-04T18:10:24Z", "who": "user601", "what": "PasswordChange", "when": "2025-06-04T18:10:24Z", "where": "AuthService", "why": "Implantado"}
+{"timestamp": "2025-06-07T00:08:38Z", "who": "user529", "what": "DataImport", "when": "2025-06-07T00:08:38Z", "where": "ImportModule", "why": "User imported external data", "storage_class": "cold"}
+{"timestamp": "2025-06-02T23:09:03Z", "who": "user515", "what": "AccessReport", "when": "2025-06-02T23:09:03Z", "where": "ReportService", "why": "Admin accessed usage report"}
