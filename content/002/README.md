@@ -85,4 +85,8 @@ The lab successfully demonstrated the integration of observability tools, with m
 ```
 🔗 https://start.spring.io/
 🔗 https://opentelemetry.io/docs/zero-code/java/spring-boot-starter/
+🔗 https://opentelemetry.io/docs/languages/java/instrumentation/
+🔗 https://opentelemetry.io/docs/languages/java/
+🔗 https://github.com/open-telemetry/opentelemetry-java-instrumentation
+🔗 https://last9.io/blog/opentelemetry-java-agent/
 ```
