@@ -44,6 +44,24 @@ graph
 
 The relationship between a Reverse Proxy and a Load Balancer is symbiotic. In many scenarios, a Reverse Proxy is deployed in conjunction with a Load Balancer to create a robust and scalable infrastructure. The Reverse Proxy handles tasks such as SSL termination, caching, and compression, offloading these responsibilities from the backend servers. Meanwhile, the Load Balancer distributes incoming requests among multiple servers, optimizing resource utilization and ensuring high availability.
 
+#### Common Proxy & Load Balancer features
+
+- SSL/TLS Termination
+- Basic Authentication
+- Certificate Management
+- IP Forwarding
+- Path-based Routing
+- Host-based Routing
+- Session Persistence
+- Health Checks
+- Load Distribution
+- Caching
+- Compression
+- Security Filtering
+- WebSocket Support
+- Logging / Metrics
+- Failover / Redundancy
+
 ### Reproducing
 
 #### Caddy
