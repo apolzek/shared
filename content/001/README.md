@@ -140,6 +140,12 @@ When it comes to setting up load balancers and reverse proxies, there are a lot 
 ### References
 
 ```
+🔗 https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/
+🔗 https://medium.com/@mahernaija/new-2025-how-to-configure-mutual-tls-mtls-for-secure-nginx-206f983ba571
 🔗 https://rafaeldalsenter.medium.com/docker-compose-nginx-aplica%C3%A7%C3%A3o-web-banco-de-dados-d8f6f33adfd2
 🔗 https://dev.to/a8hok/reverse-proxy-using-varnish-b27
+🔗 https://docs.vultr.com/set-up-traefik-proxy-as-a-reverse-proxy-for-docker-containers-on-ubuntu-24-04
+🔗 https://medium.com/@anbu.gn/getting-started-with-envoy-reverse-proxy-a-basic-guide-b7e011ad2f78
+🔗 https://medium.com/@yahyasghiouri1998/building-a-high-availability-cluster-with-haproxy-keepalived-and-docker-a-step-by-step-guide-9325f4ac8aa7
+🔗 https://caddyserver.com/docs/caddyfile/directives/reverse_proxy
 ```
