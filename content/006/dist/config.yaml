@@ -6,7 +6,10 @@ receivers:
 
 
 processors:
-  sherlockunhealthy: {}
+  unhealthyprocessor: {}
+  sleepprocessor:
+    sleep_milliseconds: 2000
+
 
 
 exporters:
@@ -17,5 +20,5 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [sherlockunhealthy]
+      processors: [unhealthyprocessor,sleepprocessor]
       exporters: [debug]

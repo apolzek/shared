@@ -14,9 +14,9 @@ import (
 
 type Config struct{}
 
-type unhealthyTraceProcessor struct{}
+type unhealthyProcessor struct{}
 
-func (p *unhealthyTraceProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
+func (p *unhealthyProcessor) processTraces(ctx context.Context, td ptrace.Traces) (ptrace.Traces, error) {
 	rs := td.ResourceSpans()
 
 	for i := 0; i < rs.Len(); i++ {
@@ -74,7 +74,7 @@ func newTracesProcessor(
 	cfg component.Config,
 	next consumer.Traces,
 ) (processor.Traces, error) {
-	p := &unhealthyTraceProcessor{}
+	p := &unhealthyProcessor{}
 	return processorhelper.NewTraces(
 		ctx,
 		set,
@@ -91,7 +91,7 @@ func createDefaultConfig() component.Config {
 
 func NewFactory() processor.Factory {
 	return processor.NewFactory(
-		component.MustNewType("sherlockunhealthy"),
+		component.MustNewType("unhealthyprocessor"),
 		createDefaultConfig,
 		processor.WithTraces(newTracesProcessor, component.StabilityLevelDevelopment),
 	)

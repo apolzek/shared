@@ -13,6 +13,8 @@ receivers:
 processors:
   - gomod: github.com/apolzek/sherlock-collector/processors/unhealthyprocessor v0.0.1
     path: ./processors/unhealthyprocessor
+  - gomod: github.com/apolzek/sherlock-collector/processors/sleepprocessor v0.0.1
+    path: ./processors/sleepprocessor
 
 exporters:
   - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.128.0

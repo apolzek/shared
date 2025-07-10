@@ -2,11 +2,10 @@
 
 module github.com/apolzek/sherlock-collector
 
-go 1.23.0
-
-toolchain go1.24.4
+go 1.24.4
 
 require (
+	github.com/apolzek/sherlock-collector/processors/sleepprocessor v0.0.1
 	github.com/apolzek/sherlock-collector/processors/unhealthyprocessor v0.0.1
 	go.opentelemetry.io/collector/component v1.34.0
 	go.opentelemetry.io/collector/confmap v1.34.0
@@ -164,3 +163,5 @@ require (
 )
 
 replace github.com/apolzek/sherlock-collector/processors/unhealthyprocessor v0.0.1 => /home/apolzek/Workdir/github.com/apolzek/shared/content/006/processors/unhealthyprocessor
+
+replace github.com/apolzek/sherlock-collector/processors/sleepprocessor v0.0.1 => /home/apolzek/Workdir/github.com/apolzek/shared/content/006/processors/sleepprocessor
