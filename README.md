@@ -12,6 +12,7 @@
 | [002](content/002) | 2025-02-10      | Modern monitoring stack (logs, traces and metrics)          |
 | [003](content/003) | 2025-02-01      | How to monitor PostgreSQL running in container              |
 | [004](content/004) | 2025-06-27      | PostgreSQL streaming replication With Docker Compose        |
+| [005](content/005) | 2025-07-12      | Separating hot and cold logs using OpenTelemetry            |
 
 <!--| [004](content/004) | 2025-06-05      | Frontend Observability with Grafana Alloy                               |
 | [005](content/005) | 2025-01-01      | PostgreSQL observability #docker-compose                                    |

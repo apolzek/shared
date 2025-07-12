@@ -89,4 +89,5 @@ The lab successfully demonstrated the integration of observability tools, with m
 🔗 https://opentelemetry.io/docs/languages/java/
 🔗 https://github.com/open-telemetry/opentelemetry-java-instrumentation
 🔗 https://last9.io/blog/opentelemetry-java-agent/
+🔗 https://medium.com/@RafaelDurelli/end-to-end-observability-with-kubernetes-prometheus-grafana-plus-a-spring-boot-bonus-6e97f220da14
 ```
