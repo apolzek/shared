@@ -6,11 +6,17 @@ receivers:
 
 
 processors:
-  unhealthyprocessor: {}
+  schemadetector:
+    include_metrics:
+      - "up"
+      - "cpu_"
+      - "memory_"
+      - "disk_"
+      - "node_"
+    log_level: "info"
+
   sleepprocessor:
     sleep_milliseconds: 2000
-
-
 
 exporters:
   debug:
@@ -20,5 +26,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [unhealthyprocessor,sleepprocessor]
+      processors: [sleepprocessor]
       exporters: [debug]
+    metrics:
+      receivers: [prometheus]
+      processors: [memory_limiter, schemadetector, batch]
+      exporters: [debug, otlp]

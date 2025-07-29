@@ -1,4 +1,4 @@
-## PostgreSQL streaming replication With Docker Compose
+## PostgreSQL streaming replication with Docker Compose
 
 ### Objectives
 

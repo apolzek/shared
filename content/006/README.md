@@ -1,4 +1,13 @@
-## Building a sherlock collector 
+## Building a custom Opentelemetry Collector
+
+### Prerequisites
+
+- curl
+- ocb
+- docker
+- docker compose
+
+### Reproducing
 
 ```
 curl --proto '=https' --tlsv1.2 -fL -o ocb \
@@ -14,10 +23,18 @@ ocb --config builder-config.yaml
 ./dist/sherlock-collector --config ./dist/config.yaml
 ```
 
+### Results
+
+
+### References
 
 ```
-https://github.com/open-telemetry/opentelemetry-collector-releases/releases/
-https://github.com/open-telemetry/opentelemetry-collector/tree/main/cmd/builder
-https://opentelemetry.io/docs/collector/installation/
-https://opentelemetry.io/docs/collector/custom-collector/
+🔗 https://opentelemetry.io/docs/collector/custom-collector/
+🔗 https://github.com/open-telemetry/opentelemetry-collector-releases/releases/
+🔗 https://github.com/open-telemetry/opentelemetry-collector/tree/main/cmd/builder
+🔗 https://opentelemetry.io/docs/collector/installation/
 ```
+
+
+go clean -modcache
+go mod tidy

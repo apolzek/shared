@@ -1,21 +1,20 @@
 dist:
-  name: sherlock-collector 
+  name: sherlock-collector
   description: "Custom collector"
   output_path: ./dist
-
   module: github.com/apolzek/sherlock-collector
   version: "0.1.0"
-  otelcol_version: "0.128.0"
+  otelcol_version: "0.128.0"  # Mudança aqui
 
 receivers:
-  - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.128.0
+  - gomod: go.opentelemetry.io/collector/receiver/otlpreceiver v0.128.0  # Ajuste aqui
 
 processors:
-  - gomod: github.com/apolzek/sherlock-collector/processors/unhealthyprocessor v0.0.1
-    path: ./processors/unhealthyprocessor
+  - gomod: github.com/apolzek/sherlock-collector/processors/schemadetectorprocessor v0.0.1
+    path: ./processors/schemadetectorprocessor
   - gomod: github.com/apolzek/sherlock-collector/processors/sleepprocessor v0.0.1
     path: ./processors/sleepprocessor
 
 exporters:
-  - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.128.0
-  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.128.0
+  - gomod: go.opentelemetry.io/collector/exporter/otlpexporter v0.128.0    # Ajuste aqui
+  - gomod: go.opentelemetry.io/collector/exporter/debugexporter v0.128.0   # Ajuste aqui

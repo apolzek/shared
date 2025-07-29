@@ -16,6 +16,17 @@ receivers:
             - key: app.name
               value: java-simulator
 
+connectors:
+  routing/storage:
+    default_pipelines: [logs/others]
+    table:
+      - context: log
+        condition: attributes["storage_class"] == "hot"
+        pipelines: [logs/hot]
+      - context: log
+        condition: attributes["storage_class"] == "cold"
+        pipelines: [logs/cold]
+
 exporters:
   debug:
     verbosity: detailed
@@ -26,38 +37,20 @@ exporters:
   file/cold:
     path: /tmp/logs-cold.json
 
-processors:
-  filter/keep_hot:
-    logs:
-      log_record:
-        - 'attributes["storage_class"] != "hot"'
-  
-  filter/keep_cold:
-    logs:
-      log_record:
-        - 'attributes["storage_class"] != "cold"'
-  
-  filter/keep_others:
-    logs:
-      log_record:
-        - 'attributes["storage_class"] == "hot" or attributes["storage_class"] == "cold"'
-
 service:
   pipelines:
-    logs/others:
+    logs/in:
       receivers: [filelog]
-      processors: [filter/keep_others]
-      exporters: [debug, file/others]
-    
+      exporters: [routing/storage]
     logs/hot:
-      receivers: [filelog]
-      processors: [filter/keep_hot]
+      receivers: [routing/storage]
       exporters: [file/hot]
-    
     logs/cold:
-      receivers: [filelog]
-      processors: [filter/keep_cold]
+      receivers: [routing/storage]
       exporters: [file/cold]
+    logs/others:
+      receivers: [routing/storage]
+      exporters: [debug, file/others]
 
   telemetry:
     metrics:

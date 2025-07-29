@@ -1,4 +1,4 @@
-## Modern monitoring stack (logs, traces and metrics)
+## Building a modern observability platform using Prometheus, Grafana, Tempo and OpenTelemetry
 
 ### Objectives
 
