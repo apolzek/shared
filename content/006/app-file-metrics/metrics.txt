@@ -1,0 +1,3 @@
+# HELP my_metric A simple counter
+# TYPE my_metric counter
+my_metric{label="value", dc="sp", critical="false"} 44

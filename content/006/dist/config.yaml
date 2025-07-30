@@ -3,17 +3,23 @@ receivers:
     protocols:
       grpc:
       http:
+  prometheus:
+    config:
+      scrape_configs:
 
+        - job_name: 'app-file-metrics'
+          static_configs:
+            - targets: ['localhost:2112']
+          scrape_interval: 15s
+          metrics_path: '/metrics'
 
 processors:
   schemadetector:
-    include_metrics:
-      - "up"
-      - "cpu_"
-      - "memory_"
-      - "disk_"
-      - "node_"
-    log_level: "info"
+    log_file_path: "./schema_metrics.json"
+    metric_filters:
+      - "my_metric"
+      - "prometheus"
+    enable_diff: true
 
   sleepprocessor:
     sleep_milliseconds: 2000
@@ -29,6 +35,6 @@ service:
       processors: [sleepprocessor]
       exporters: [debug]
     metrics:
-      receivers: [prometheus]
-      processors: [memory_limiter, schemadetector, batch]
-      exporters: [debug, otlp]
+      receivers: [otlp,prometheus]
+      processors: [schemadetector]
+      exporters: [debug]

@@ -38,3 +38,51 @@ ocb --config builder-config.yaml
 
 go clean -modcache
 go mod tidy
+
+
+```
+# teste-schema-1.sh
+curl -X POST http://localhost:4318/v1/metrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceMetrics": [{
+      "scopeMetrics": [{
+        "metrics": [{
+          "name": "job_status",
+          "gauge": {
+            "dataPoints": [{
+              "attributes": [
+                {"key": "dc", "value": {"stringValue": "dc1"}},
+                {"key": "offline", "value": {"stringValue": "no"}}
+              ],
+              "asInt": "1"
+            }]
+          }
+        }]
+      }]
+    }]
+  }'
+
+# teste-schema-2.sh (com label extra)
+curl -X POST http://localhost:4318/v1/metrics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceMetrics": [{
+      "scopeMetrics": [{
+        "metrics": [{
+          "name": "job_status",
+          "gauge": {
+            "dataPoints": [{
+              "attributes": [
+                {"key": "dc", "value": {"stringValue": "dc1"}},
+                {"key": "offline", "value": {"stringValue": "no"}},
+                {"key": "ko", "value": {"stringValue": "no"}}
+              ],
+              "asInt": "1"
+            }]
+          }
+        }]
+      }]
+    }]
+  }'
+```
