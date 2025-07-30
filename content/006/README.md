@@ -1,4 +1,4 @@
-## Building a custom Opentelemetry Collector
+## Building a custom Opentelemetry Collector with custom processor
 
 ### Prerequisites
 
