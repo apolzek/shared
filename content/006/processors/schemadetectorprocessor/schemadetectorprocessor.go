@@ -35,54 +35,54 @@ type Config struct {
 	// If empty, all metrics will be monitored
 	MetricFilters []string `mapstructure:"metric_filters"`
 
-	// EnableDiff enables detailed diff output in the log
-	EnableDiff bool `mapstructure:"enable_diff"`
+	// ToleranceWindowSeconds defines the time window in seconds to wait before
+	// considering a schema change as legitimate (to handle late/out-of-order data)
+	ToleranceWindowSeconds int `mapstructure:"tolerance_window_seconds"`
 }
 
 // Validate checks if the processor configuration is valid
 func (cfg *Config) Validate() error {
 	if cfg.LogFilePath == "" {
-		cfg.LogFilePath = "schema_metrics.json"
+		cfg.LogFilePath = "schema_changes.json"
+	}
+	if cfg.ToleranceWindowSeconds <= 0 {
+		cfg.ToleranceWindowSeconds = 30 // 30 segundos por padrão
 	}
 	return nil
 }
 
 // MetricSchema represents the schema of a metric
 type MetricSchema struct {
-	MetricName string            `json:"metric_name"`
-	Labels     map[string]string `json:"labels"`
-	LabelKeys  []string          `json:"label_keys"`
-	LastSeen   time.Time         `json:"last_seen"`
-	FirstSeen  time.Time         `json:"first_seen"`
-	MetricType string            `json:"metric_type,omitempty"`
+	MetricName string    `json:"metric_name"`
+	LabelKeys  []string  `json:"label_keys"`
+	LastSeen   time.Time `json:"last_seen"`
+	FirstSeen  time.Time `json:"first_seen"`
+	MetricType string    `json:"metric_type"`
 }
 
-// SchemaChange represents a change in metric schema
+// SchemaChange represents a simplified change in metric schema
 type SchemaChange struct {
-	MetricName string       `json:"metric_name"`
-	Timestamp  time.Time    `json:"timestamp"`
-	ChangeType string       `json:"change_type"` // "labels_added", "labels_removed", "labels_changed"
-	Before     MetricSchema `json:"before"`
-	After      MetricSchema `json:"after"`
-	Diff       SchemaDiff   `json:"diff,omitempty"`
-}
-
-// SchemaDiff represents the differences between schemas
-type SchemaDiff struct {
-	AddedLabels   []string `json:"added_labels,omitempty"`
-	RemovedLabels []string `json:"removed_labels,omitempty"`
-	ChangedLabels []string `json:"changed_labels,omitempty"`
+	MetricName   string    `json:"metric_name"`
+	Timestamp    time.Time `json:"timestamp"`
+	OldLabelKeys []string  `json:"old_label_keys"`
+	NewLabelKeys []string  `json:"new_label_keys"`
+	MetricType   string    `json:"metric_type"`
 }
 
 // schemaDetectorProcessor processes metrics and detects schema changes
 type schemaDetectorProcessor struct {
-	config        *Config
-	logger        *zap.Logger
-	metricSchemas map[string]MetricSchema
+	config *Config
+	logger *zap.Logger
+	// SIMPLIFICAÇÃO: Manter apenas o schema mais recente por métrica
+	// Removendo metricSchemas que causava confusão
+	latestSchemas map[string]MetricSchema
 }
 
 // processMetrics processes the metrics and detects schema changes
 func (p *schemaDetectorProcessor) processMetrics(ctx context.Context, md pmetric.Metrics) (pmetric.Metrics, error) {
+	// Limpa schemas antigos periodicamente para evitar vazamento de memória
+	p.cleanOldSchemas()
+
 	resourceMetrics := md.ResourceMetrics()
 
 	for i := 0; i < resourceMetrics.Len(); i++ {
@@ -120,57 +120,42 @@ func (p *schemaDetectorProcessor) processMetric(metric pmetric.Metric) {
 		gauge := metric.Gauge()
 		for i := 0; i < gauge.DataPoints().Len(); i++ {
 			dp := gauge.DataPoints().At(i)
-			p.processNumberDataPoint(metricName, metricType, dp)
+			p.processDataPoint(metricName, metricType, dp.Attributes())
 		}
 	case pmetric.MetricTypeSum:
 		sum := metric.Sum()
 		for i := 0; i < sum.DataPoints().Len(); i++ {
 			dp := sum.DataPoints().At(i)
-			p.processNumberDataPoint(metricName, metricType, dp)
+			p.processDataPoint(metricName, metricType, dp.Attributes())
 		}
 	case pmetric.MetricTypeHistogram:
 		histogram := metric.Histogram()
 		for i := 0; i < histogram.DataPoints().Len(); i++ {
 			dp := histogram.DataPoints().At(i)
-			p.processHistogramDataPoint(metricName, metricType, dp)
+			p.processDataPoint(metricName, metricType, dp.Attributes())
 		}
 	case pmetric.MetricTypeSummary:
 		summary := metric.Summary()
 		for i := 0; i < summary.DataPoints().Len(); i++ {
 			dp := summary.DataPoints().At(i)
-			p.processSummaryDataPoint(metricName, metricType, dp)
+			p.processDataPoint(metricName, metricType, dp.Attributes())
 		}
 	default:
-		// For other metric types, we'll skip for now
 		return
 	}
 }
 
-// processNumberDataPoint processes a single number data point
-func (p *schemaDetectorProcessor) processNumberDataPoint(metricName, metricType string, dp pmetric.NumberDataPoint) {
-	labels, labelKeys := p.extractAttributesFromMap(dp.Attributes())
-	p.processSchemaForMetric(metricName, metricType, labels, labelKeys)
+// processDataPoint processes a single data point's attributes
+func (p *schemaDetectorProcessor) processDataPoint(metricName, metricType string, attrs pcommon.Map) {
+	labelKeys := p.extractLabelKeys(attrs)
+	p.processSchemaForMetric(metricName, metricType, labelKeys)
 }
 
-// processHistogramDataPoint processes a single histogram data point
-func (p *schemaDetectorProcessor) processHistogramDataPoint(metricName, metricType string, dp pmetric.HistogramDataPoint) {
-	labels, labelKeys := p.extractAttributesFromMap(dp.Attributes())
-	p.processSchemaForMetric(metricName, metricType, labels, labelKeys)
-}
-
-// processSummaryDataPoint processes a single summary data point
-func (p *schemaDetectorProcessor) processSummaryDataPoint(metricName, metricType string, dp pmetric.SummaryDataPoint) {
-	labels, labelKeys := p.extractAttributesFromMap(dp.Attributes())
-	p.processSchemaForMetric(metricName, metricType, labels, labelKeys)
-}
-
-// extractAttributesFromMap extracts attributes from pcommon.Map
-func (p *schemaDetectorProcessor) extractAttributesFromMap(attrs pcommon.Map) (map[string]string, []string) {
-	labels := make(map[string]string)
-	labelKeys := make([]string, 0)
+// extractLabelKeys extracts only the label keys from attributes (ignoring values)
+func (p *schemaDetectorProcessor) extractLabelKeys(attrs pcommon.Map) []string {
+	labelKeys := make([]string, 0, attrs.Len())
 
 	attrs.Range(func(k string, v pcommon.Value) bool {
-		labels[k] = v.AsString()
 		labelKeys = append(labelKeys, k)
 		return true
 	})
@@ -178,126 +163,112 @@ func (p *schemaDetectorProcessor) extractAttributesFromMap(attrs pcommon.Map) (m
 	// Sort label keys for consistent comparison
 	sort.Strings(labelKeys)
 
-	return labels, labelKeys
+	return labelKeys
 }
 
-// processSchemaForMetric processes schema for a metric with given labels
-func (p *schemaDetectorProcessor) processSchemaForMetric(metricName, metricType string, labels map[string]string, labelKeys []string) {
-	// Create a unique key for this metric schema
-	schemaKey := p.createSchemaKey(metricName, labelKeys)
+// processSchemaForMetric processes schema for a metric with given label keys
+func (p *schemaDetectorProcessor) processSchemaForMetric(metricName, metricType string, labelKeys []string) {
+	now := time.Now()
 
 	currentSchema := MetricSchema{
 		MetricName: metricName,
-		Labels:     labels,
 		LabelKeys:  labelKeys,
-		LastSeen:   time.Now(),
+		LastSeen:   now,
 		MetricType: metricType,
 	}
 
-	// Check if we've seen this schema before
-	if existingSchema, exists := p.metricSchemas[schemaKey]; exists {
-		// Update last seen time
-		existingSchema.LastSeen = time.Now()
-		p.metricSchemas[schemaKey] = existingSchema
+	// SIMPLIFICAÇÃO: Trabalhar apenas com latestSchemas
+	if existingSchema, exists := p.latestSchemas[metricName]; exists {
+		// Verificar se as label keys são diferentes
+		if !p.labelKeysEqual(existingSchema.LabelKeys, currentSchema.LabelKeys) {
+			// Schema diferente detectado, verificar janela de tolerância
+			p.detectSchemaChange(metricName, metricType, existingSchema, currentSchema)
+		}
+		// Atualizar sempre o último schema visto
+		currentSchema.FirstSeen = existingSchema.FirstSeen // Manter primeiro tempo
+		p.latestSchemas[metricName] = currentSchema
 	} else {
-		// This is a new schema, check if there's a similar one (schema change)
-		currentSchema.FirstSeen = time.Now()
-		p.detectSchemaChange(metricName, currentSchema)
-		p.metricSchemas[schemaKey] = currentSchema
+		// Primeira vez vendo esta métrica
+		currentSchema.FirstSeen = now
+		p.latestSchemas[metricName] = currentSchema
+
+		p.logger.Debug("First time seeing metric",
+			zap.String("metric", metricName),
+			zap.Strings("label_keys", labelKeys),
+		)
 	}
 }
 
-// detectSchemaChange detects if there's a schema change for a metric
-func (p *schemaDetectorProcessor) detectSchemaChange(metricName string, newSchema MetricSchema) {
-	// Look for existing schemas with the same metric name but different label structure
-	for key, existingSchema := range p.metricSchemas {
-		if existingSchema.MetricName == metricName && !p.schemasEqual(existingSchema, newSchema) {
-			// Schema change detected
-			change := p.createSchemaChange(existingSchema, newSchema)
-			p.logSchemaChange(change)
+// SIMPLIFICAÇÃO TOTAL: detectSchemaChange com lógica muito mais simples
+func (p *schemaDetectorProcessor) detectSchemaChange(metricName, metricType string, oldSchema, newSchema MetricSchema) {
+	now := time.Now()
+	toleranceWindow := time.Duration(p.config.ToleranceWindowSeconds) * time.Second
 
-			p.logger.Info("Schema change detected",
-				zap.String("metric", metricName),
-				zap.String("change_type", change.ChangeType),
-				zap.Strings("added_labels", change.Diff.AddedLabels),
-				zap.Strings("removed_labels", change.Diff.RemovedLabels),
-				zap.Strings("changed_labels", change.Diff.ChangedLabels),
-			)
+	// Verificar se passou tempo suficiente desde a última mudança
+	timeSinceLastSeen := now.Sub(oldSchema.LastSeen)
 
-			// Remove the old schema
-			delete(p.metricSchemas, key)
-			break
+	if timeSinceLastSeen > toleranceWindow {
+		// Tempo suficiente passou, esta é uma mudança legítima
+		change := SchemaChange{
+			MetricName:   metricName,
+			Timestamp:    now,
+			OldLabelKeys: oldSchema.LabelKeys,
+			NewLabelKeys: newSchema.LabelKeys,
+			MetricType:   metricType,
 		}
+
+		p.logSchemaChange(change)
+
+		p.logger.Info("Schema change detected",
+			zap.String("metric", metricName),
+			zap.String("metric_type", metricType),
+			zap.Strings("old_labels", oldSchema.LabelKeys),
+			zap.Strings("new_labels", newSchema.LabelKeys),
+			zap.Duration("time_since_last_seen", timeSinceLastSeen),
+			zap.Duration("tolerance_window", toleranceWindow),
+		)
+	} else {
+		// Muito pouco tempo passou, provavelmente dados atrasados
+		p.logger.Debug("Schema change detected but within tolerance window, ignoring",
+			zap.String("metric", metricName),
+			zap.Duration("time_since_last_seen", timeSinceLastSeen),
+			zap.Duration("tolerance_window", toleranceWindow),
+			zap.Strings("old_labels", oldSchema.LabelKeys),
+			zap.Strings("new_labels", newSchema.LabelKeys),
+		)
 	}
 }
 
-// createSchemaChange creates a SchemaChange object
-func (p *schemaDetectorProcessor) createSchemaChange(before, after MetricSchema) SchemaChange {
-	diff := p.calculateDiff(before, after)
+// Removidas as funções desnecessárias relacionadas a metricSchemas
 
-	changeType := "labels_changed"
-	if len(diff.AddedLabels) > 0 && len(diff.RemovedLabels) == 0 && len(diff.ChangedLabels) == 0 {
-		changeType = "labels_added"
-	} else if len(diff.RemovedLabels) > 0 && len(diff.AddedLabels) == 0 && len(diff.ChangedLabels) == 0 {
-		changeType = "labels_removed"
-	}
+// cleanOldSchemas limpa schemas antigos para evitar vazamento de memória
+func (p *schemaDetectorProcessor) cleanOldSchemas() {
+	now := time.Now()
+	toleranceWindow := time.Duration(p.config.ToleranceWindowSeconds) * time.Second
+	maxRetentionTime := toleranceWindow * 10 // Mantenha por 10x a janela de tolerância
 
-	return SchemaChange{
-		MetricName: before.MetricName,
-		Timestamp:  time.Now(),
-		ChangeType: changeType,
-		Before:     before,
-		After:      after,
-		Diff:       diff,
-	}
-}
+	var toRemove []string
 
-// calculateDiff calculates the difference between two schemas
-func (p *schemaDetectorProcessor) calculateDiff(before, after MetricSchema) SchemaDiff {
-	beforeKeys := make(map[string]bool)
-	afterKeys := make(map[string]bool)
-
-	for _, key := range before.LabelKeys {
-		beforeKeys[key] = true
-	}
-
-	for _, key := range after.LabelKeys {
-		afterKeys[key] = true
-	}
-
-	var addedLabels, removedLabels, changedLabels []string
-
-	// Find added labels
-	for key := range afterKeys {
-		if !beforeKeys[key] {
-			addedLabels = append(addedLabels, key)
+	// Limpar apenas latestSchemas (não há mais metricSchemas)
+	for metricName, schema := range p.latestSchemas {
+		if now.Sub(schema.LastSeen) > maxRetentionTime {
+			toRemove = append(toRemove, metricName)
 		}
 	}
 
-	// Find removed labels
-	for key := range beforeKeys {
-		if !afterKeys[key] {
-			removedLabels = append(removedLabels, key)
-		}
+	for _, metricName := range toRemove {
+		delete(p.latestSchemas, metricName)
+		p.logger.Debug("Removed old schema from memory",
+			zap.String("metric", metricName),
+			zap.Duration("max_retention", maxRetentionTime),
+		)
 	}
 
-	// Find changed labels (same key, different value)
-	for key := range beforeKeys {
-		if afterKeys[key] {
-			if before.Labels[key] != after.Labels[key] {
-				changedLabels = append(changedLabels, key)
-			}
-		}
-	}
-
-	sort.Strings(addedLabels)
-	sort.Strings(removedLabels)
-	sort.Strings(changedLabels)
-
-	return SchemaDiff{
-		AddedLabels:   addedLabels,
-		RemovedLabels: removedLabels,
-		ChangedLabels: changedLabels,
+	if len(toRemove) > 0 {
+		p.logger.Debug("Schema cleanup completed",
+			zap.Int("removed_count", len(toRemove)),
+			zap.Int("remaining_count", len(p.latestSchemas)),
+		)
 	}
 }
 
@@ -308,7 +279,10 @@ func (p *schemaDetectorProcessor) logSchemaChange(change SchemaChange) {
 
 	if data, err := os.ReadFile(p.config.LogFilePath); err == nil {
 		if err := json.Unmarshal(data, &changes); err != nil {
-			p.logger.Warn("Failed to unmarshal existing schema changes", zap.Error(err))
+			p.logger.Warn("Failed to unmarshal existing schema changes",
+				zap.Error(err),
+				zap.String("file_path", p.config.LogFilePath),
+			)
 			changes = []SchemaChange{} // Start fresh if file is corrupted
 		}
 	}
@@ -319,6 +293,7 @@ func (p *schemaDetectorProcessor) logSchemaChange(change SchemaChange) {
 	// Keep only last 1000 changes to prevent file from growing too large
 	if len(changes) > 1000 {
 		changes = changes[len(changes)-1000:]
+		p.logger.Debug("Trimmed schema changes log to last 1000 entries")
 	}
 
 	// Write back to file
@@ -336,7 +311,8 @@ func (p *schemaDetectorProcessor) logSchemaChange(change SchemaChange) {
 		p.logger.Debug("Schema change logged successfully",
 			zap.String("file_path", p.config.LogFilePath),
 			zap.String("metric", change.MetricName),
-			zap.String("change_type", change.ChangeType))
+			zap.Int("total_changes_logged", len(changes)),
+		)
 	}
 }
 
@@ -355,14 +331,14 @@ func (p *schemaDetectorProcessor) shouldProcessMetric(metricName string) bool {
 	return false
 }
 
-// schemasEqual checks if two schemas are equal
-func (p *schemaDetectorProcessor) schemasEqual(a, b MetricSchema) bool {
-	if len(a.LabelKeys) != len(b.LabelKeys) {
+// labelKeysEqual checks if two label key arrays are equal
+func (p *schemaDetectorProcessor) labelKeysEqual(a, b []string) bool {
+	if len(a) != len(b) {
 		return false
 	}
 
-	for i, key := range a.LabelKeys {
-		if key != b.LabelKeys[i] {
+	for i, key := range a {
+		if key != b[i] {
 			return false
 		}
 	}
@@ -404,8 +380,15 @@ func newMetricsProcessor(
 	p := &schemaDetectorProcessor{
 		config:        c,
 		logger:        set.Logger,
-		metricSchemas: make(map[string]MetricSchema),
+		latestSchemas: make(map[string]MetricSchema), // SIMPLIFICADO: apenas latest
 	}
+
+	p.logger.Info("Schema detector processor initialized",
+		zap.String("log_file_path", c.LogFilePath),
+		zap.Strings("metric_filters", c.MetricFilters),
+		zap.Int("tolerance_window_seconds", c.ToleranceWindowSeconds),
+	)
+
 	return processorhelper.NewMetrics(
 		ctx,
 		set,
@@ -419,9 +402,9 @@ func newMetricsProcessor(
 // createDefaultConfig creates the default configuration for the processor
 func createDefaultConfig() component.Config {
 	return &Config{
-		LogFilePath:   "schema_metrics.json",
-		MetricFilters: []string{},
-		EnableDiff:    true,
+		LogFilePath:            "schema_changes.json",
+		MetricFilters:          []string{},
+		ToleranceWindowSeconds: 30,
 	}
 }
 

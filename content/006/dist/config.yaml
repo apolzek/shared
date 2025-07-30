@@ -15,11 +15,10 @@ receivers:
 
 processors:
   schemadetector:
-    log_file_path: "./schema_metrics.json"
+    log_file_path: "./schema_changes.json"
     metric_filters:
       - "my_metric"
-      - "prometheus"
-    enable_diff: true
+    tolerance_window_seconds: 5
 
   sleepprocessor:
     sleep_milliseconds: 2000
