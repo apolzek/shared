@@ -66,8 +66,7 @@ labels:
 
 Install java/maven using [mise](https://mise.jdx.dev/lang/java.html)
 ```
-mise use -g java@openjdk-21
-mise use -g java@21
+mise use -g java@17
 mise install maven
 mise use maven
 ```
