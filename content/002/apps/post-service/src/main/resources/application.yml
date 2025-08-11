@@ -11,9 +11,9 @@ management:
       exposure:
         include: health
 
-  otlp:
-    tracing:
-      endpoint: http://localhost:4318/v1/traces
+  # otlp:
+  #   tracing:
+  #     endpoint: http://localhost:4317/v1/traces
 
   tracing:
     sampling:
@@ -24,7 +24,7 @@ spring:
     name: post-service
 
 server:
-  port: 8080
+  port: 8086
 
 resilience4j.circuitbreaker:
   configs:
