@@ -14,8 +14,9 @@
 | [004](content/004) | 2025-06-27      | PostgreSQL streaming replication with Docker Compose                                        |
 | [005](content/005) | 2025-07-12      | Basic log segregation with OpenTelemetry                                                    |
 | [006](content/006) | 2025-07-29      | Building a custom Opentelemetry Collector with custom processor                             |
+| [007](content/007) | 2025-06-05      | Processing observability data at scale with Apache Flink                                    |
 
-<!--| [004](content/004) | 2025-06-05      | Frontend Observability with Grafana Alloy                               |
+<!--
 | [005](content/005) | 2025-01-01      | PostgreSQL observability #docker-compose                                    |
 | [006](content/006) | 2025-01-01      | Logging with Loki, Fluent Bit and Grafana                                   |
 | [007](content/007) | 2025-01-01      | Parsing YAML in Golang                                                      |
@@ -24,3 +25,4 @@
 | [010](content/010) | 2025-01-01      | Setting up a local cluster for kubernetes testing #kind                     | -->
 
 <!-- find . -type f -size +10M | grep -v ".git" | sed 's|^\./||' >> .gitignore -->
+<!-- echo "Running: $(docker compose ps --services --filter status=running | wc -l) out of $(docker compose ps --services | wc -l)" -->

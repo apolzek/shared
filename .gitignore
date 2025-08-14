@@ -2,15 +2,7 @@
 **/env/
 **/venv/
 **/.venv/
-content/006/dist/sherlock-collector
 **/target/
-content/007/high-cardinality-detector/target/high-cardinality-detector-1.0-SNAPSHOT.jar
-content/007/fastapi/.venv/lib/python3.12/site-packages/uvloop/loop.cpython-312-x86_64-linux-gnu.so
-content/007/fastapi/.venv/lib/python3.12/site-packages/numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
-content/007/fastapi/.venv/lib/python3.12/site-packages/scipy.libs/libscipy_openblas-68440149.so
-content/007/flink/jobs/high-cardinality-detector-1.0-SNAPSHOT.jar
-drafts/draft-013/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-56d6093b.so
-drafts/draft-013/.venv/lib/python3.12/site-packages/numpy/_core/_multiarray_umath.cpython-312-x86_64-linux-gnu.so
 
 *.jar
 *.war
@@ -36,6 +28,8 @@ drafts/draft-013/.venv/lib/python3.12/site-packages/numpy/_core/_multiarray_umat
 *.avi
 *.mkv
 *.mp3
+
+
 *.wavcontent/002/apps/post-service/target/monitoring-0.0.1-SNAPSHOT.jar
 content/002/apps/comment-service/target/monitoring-0.0.1-SNAPSHOT.jar
 content/007/high-cardinality-detector/target/high-cardinality-detector-1.0-SNAPSHOT.jar
@@ -43,5 +37,19 @@ content/007/fastapi/.venv/lib/python3.12/site-packages/uvloop/loop.cpython-312-x
 content/007/fastapi/.venv/lib/python3.12/site-packages/numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
 content/007/fastapi/.venv/lib/python3.12/site-packages/scipy.libs/libscipy_openblas-68440149.so
 content/007/flink/jobs/high-cardinality-detector-1.0-SNAPSHOT.jar
+drafts/draft-013/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-56d6093b.so
+drafts/draft-013/.venv/lib/python3.12/site-packages/numpy/_core/_multiarray_umath.cpython-312-x86_64-linux-gnu.so
+content/007/high-cardinality-detector/target/high-cardinality-detector-1.0-SNAPSHOT.jar
+content/007/fastapi/.venv/lib/python3.12/site-packages/uvloop/loop.cpython-312-x86_64-linux-gnu.so
+content/007/fastapi/.venv/lib/python3.12/site-packages/numpy.libs/libopenblas64_p-r0-0cf96a72.3.23.dev.so
+content/007/fastapi/.venv/lib/python3.12/site-packages/scipy.libs/libscipy_openblas-68440149.so
+content/007/flink/jobs/high-cardinality-detector-1.0-SNAPSHOT.jar
+drafts/draft-013/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-56d6093b.so
+drafts/draft-013/.venv/lib/python3.12/site-packages/numpy/_core/_multiarray_umath.cpython-312-x86_64-linux-gnu.so
+content/006/dist/sherlock-collectorcontent/002/apps/post-service/target/monitoring-0.0.1-SNAPSHOT.jar
+content/002/apps/comment-service/target/monitoring-0.0.1-SNAPSHOT.jar
+content/007/high-cardinality-detector/target/high-cardinality-detector-1.0-SNAPSHOT.jar
+content/007/flink/jobs/high-cardinality-detector-1.0-SNAPSHOT.jar
+content/007/flink/jobs/flink-otlp-consumer-1.0-SNAPSHOT.jar
 drafts/draft-013/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-56d6093b.so
 drafts/draft-013/.venv/lib/python3.12/site-packages/numpy/_core/_multiarray_umath.cpython-312-x86_64-linux-gnu.so
