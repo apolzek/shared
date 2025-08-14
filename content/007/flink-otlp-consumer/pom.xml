@@ -17,6 +17,7 @@
         <kafka.version>3.1.0-1.18</kafka.version>
         <otlp.version>1.6.0-alpha</otlp.version>
         <protobuf.version>4.31.0</protobuf.version>
+        <prometheus.connector.version>1.0.0-1.20</prometheus.connector.version>
     </properties>
 
     <dependencies>
@@ -93,6 +94,28 @@
             <artifactId>junit</artifactId>
             <version>4.13.2</version>
             <scope>test</scope>
+        </dependency>
+
+        <!-- Prometheus -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-prometheus</artifactId>
+            <version>${prometheus.connector.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-prometheus-request-signer-amp</artifactId>
+            <version>${prometheus.connector.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.13</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-base</artifactId>
+            <version>1.18.0</version>
         </dependency>
     </dependencies>
 

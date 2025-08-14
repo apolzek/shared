@@ -16,15 +16,25 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// Imports adicionais para Prometheus Sink
+import org.apache.flink.connector.prometheus.sink.PrometheusSink;
+import org.apache.flink.connector.prometheus.sink.PrometheusSinkConfiguration.RetryConfiguration;
+import org.apache.flink.connector.prometheus.sink.PrometheusSinkConfiguration.SinkWriterErrorHandlingBehaviorConfiguration;
+import org.apache.flink.connector.prometheus.sink.PrometheusTimeSeries;
+import org.apache.flink.connector.prometheus.sink.PrometheusTimeSeriesLabelsAndMetricNameKeySelector;
+import static org.apache.flink.connector.prometheus.sink.PrometheusSinkConfiguration.OnErrorBehavior.DISCARD_AND_CONTINUE;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.common.functions.MapFunction;
+
 import java.io.IOException;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Properties;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public class OTLPMetricsConsumer {
     private static final Logger log = LoggerFactory.getLogger(OTLPMetricsConsumer.class);
@@ -55,12 +65,190 @@ public class OTLPMetricsConsumer {
         // Processar e imprimir as métricas de forma amigável
         metricsStream.addSink(new MetricsPrettyPrintSink());
 
+        // *** NOVO: Configurar Prometheus Sink ***
+        Properties prometheusProps = new Properties();
+        prometheusProps.setProperty("endpoint.url", "http://prometheus:9090/api/v1/write"); // Ajustar para seu endpoint
+        prometheusProps.setProperty("aws.region", "us-east-1"); // Ajustar para sua região se usando AMP
+        prometheusProps.setProperty("max.request.retry", "3");
+
+        // Converter para formato Prometheus e enviar
+        metricsStream
+            .map(new OTLPToPrometheusMapper())
+            .name("otlp-to-prometheus-mapper")
+            .keyBy(new PrometheusTimeSeriesLabelsAndMetricNameKeySelector())
+            .sinkTo(createPrometheusSink(prometheusProps))
+            .name("prometheus-sink")
+            .uid("prometheus-sink");
+
         // Executar o job
         log.info("=== Executando o job Flink ===");
         env.execute("OTLP Metrics Consumer");
     }
 
-    // Classe para representar dados de métrica processados
+    // *** NOVO: Método para criar Prometheus Sink ***
+    private static Sink<PrometheusTimeSeries> createPrometheusSink(Properties prometheusSinkProperties) {
+        String endpointUrl = prometheusSinkProperties.getProperty("endpoint.url");
+        
+        if (endpointUrl == null || endpointUrl.trim().isEmpty()) {
+            throw new IllegalArgumentException("endpoint.url not defined");
+        }
+        
+        int maxRequestRetryCount = Integer.parseInt(
+            prometheusSinkProperties.getProperty("max.request.retry", "3"));
+        
+        if (maxRequestRetryCount <= 0) {
+            throw new IllegalArgumentException("max.request.retry must be > 0");
+        }
+        
+        log.info("Prometheus sink: endpoint {}", endpointUrl);
+        
+        return PrometheusSink.builder()
+                .setPrometheusRemoteWriteUrl(endpointUrl)
+                .setRetryConfiguration(RetryConfiguration.builder()
+                        .setMaxRetryCount(maxRequestRetryCount).build())
+                .setErrorHandlingBehaviorConfiguration(SinkWriterErrorHandlingBehaviorConfiguration.builder()
+                        .onMaxRetryExceeded(DISCARD_AND_CONTINUE)
+                        .build())
+                .setMetricGroupName("otlpMetrics") // Nome do grupo de métricas
+                .build();
+    }
+
+    // *** NOVO: Mapper para converter OTLP para formato Prometheus ***
+    public static class OTLPToPrometheusMapper implements MapFunction<OTLPMetricData, PrometheusTimeSeries> {
+        
+        @Override
+        public PrometheusTimeSeries map(OTLPMetricData metric) throws Exception {
+            if (metric.isError) {
+                // Para métricas com erro, criar uma métrica de erro
+                PrometheusTimeSeries.Label[] errorLabels = {
+                    new PrometheusTimeSeries.Label("error_type", "deserialization_error"),
+                    new PrometheusTimeSeries.Label("service_name", "otlp_consumer")
+                };
+                
+                PrometheusTimeSeries.Sample[] errorSamples = {
+                    new PrometheusTimeSeries.Sample(1.0, System.currentTimeMillis())
+                };
+                
+                return new PrometheusTimeSeries(
+                    "otlp_processing_errors_total",
+                    errorLabels,
+                    errorSamples
+                );
+            }
+
+            // Normalizar nome da métrica para padrão Prometheus
+            String normalizedMetricName = normalizeMetricName(metric.metricName);
+            
+            // Construir labels
+            Map<String, String> labelsMap = new HashMap<>();
+            labelsMap.put("service_name", metric.serviceName);
+            labelsMap.put("metric_type", metric.metricType.toLowerCase().replace(" ", "_").replace("(", "").replace(")", ""));
+            
+            // Adicionar unit como label se existir
+            if (metric.unit != null && !metric.unit.trim().isEmpty()) {
+                labelsMap.put("unit", metric.unit);
+            }
+            
+            // Parse e adicionar outros labels dos atributos
+            if (metric.attributes != null && !metric.attributes.trim().isEmpty()) {
+                Map<String, String> parsedAttributes = parseAttributes(metric.attributes);
+                for (Map.Entry<String, String> entry : parsedAttributes.entrySet()) {
+                    String labelKey = normalizeLabelName(entry.getKey());
+                    labelsMap.put(labelKey, entry.getValue());
+                }
+            }
+            
+            // Converter valor para double
+            double prometheusValue = parseValueToDouble(metric.value);
+            
+            // Converter Map para array de Labels
+            PrometheusTimeSeries.Label[] labels = labelsMap.entrySet().stream()
+                .map(entry -> new PrometheusTimeSeries.Label(entry.getKey(), entry.getValue()))
+                .toArray(PrometheusTimeSeries.Label[]::new);
+            
+            // Criar array de Samples
+            PrometheusTimeSeries.Sample[] samples = {
+                new PrometheusTimeSeries.Sample(prometheusValue, System.currentTimeMillis())
+            };
+            
+            return new PrometheusTimeSeries(
+                normalizedMetricName,
+                labels,
+                samples
+            );
+        }
+        
+        private String normalizeMetricName(String name) {
+            if (name == null || name.trim().isEmpty()) {
+                return "unknown_metric";
+            }
+            // Remover caracteres especiais e garantir que comece com letra ou underscore
+            String normalized = name.replaceAll("[^a-zA-Z0-9_:]", "_");
+            if (!normalized.matches("^[a-zA-Z_:].*")) {
+                normalized = "_" + normalized;
+            }
+            return normalized;
+        }
+
+        private String normalizeLabelName(String name) {
+            if (name == null || name.trim().isEmpty()) {
+                return "unknown_label";
+            }
+            // Labels não podem ter dois pontos
+            String normalized = name.replaceAll("[^a-zA-Z0-9_]", "_");
+            if (!normalized.matches("^[a-zA-Z_].*")) {
+                normalized = "_" + normalized;
+            }
+            return normalized;
+        }
+        
+        private double parseValueToDouble(String value) {
+            if (value == null || value.trim().isEmpty() || "N/A".equals(value)) {
+                return 0.0;
+            }
+            
+            try {
+                return Double.parseDouble(value);
+            } catch (NumberFormatException e) {
+                // Para histogramas, extrair apenas o count
+                if (value.startsWith("Count: ")) {
+                    try {
+                        String countPart = value.split(",")[0].replace("Count: ", "").trim();
+                        return Double.parseDouble(countPart);
+                    } catch (Exception ex) {
+                        return 0.0;
+                    }
+                }
+                return 0.0;
+            }
+        }
+        
+        private Map<String, String> parseAttributes(String attributesStr) {
+            Map<String, String> attributes = new HashMap<>();
+            if (attributesStr == null || attributesStr.trim().isEmpty()) {
+                return attributes;
+            }
+            
+            String[] pairs = attributesStr.split(",\\s*");
+            for (String pair : pairs) {
+                String[] kv = pair.split("=", 2);
+                if (kv.length == 2) {
+                    String key = kv[0].trim();
+                    String value = kv[1].trim();
+                    // Remover aspas se existirem
+                    if (value.startsWith("\"") && value.endsWith("\"") && value.length() > 1) {
+                        value = value.substring(1, value.length() - 1);
+                    }
+                    // Normalizar chave do label
+                    key = normalizeLabelName(key);
+                    attributes.put(key, value);
+                }
+            }
+            return attributes;
+        }
+    }
+
+    // Classe para representar dados de métrica processados (mantido igual)
     public static class OTLPMetricData {
         public final String timestamp;
         public final String serviceName;
@@ -107,7 +295,7 @@ public class OTLPMetricsConsumer {
         }
     }
 
-    // Deserializador melhorado com tratamento robusto de erros
+    // Deserializador melhorado (mantido igual ao código menor)
     public static class OTLPMetricsDeserializer implements DeserializationSchema<OTLPMetricData> {
         private static final Logger log = LoggerFactory.getLogger(OTLPMetricsDeserializer.class);
         private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
@@ -390,7 +578,7 @@ public class OTLPMetricsConsumer {
         }
     }
 
-    // Sink customizado para impressão formatada
+    // Sink customizado para impressão formatada (mantido igual)
     public static class MetricsPrettyPrintSink implements SinkFunction<OTLPMetricData> {
         private static final Logger log = LoggerFactory.getLogger(MetricsPrettyPrintSink.class);
         private static final String SEPARATOR = "═".repeat(80);
@@ -437,11 +625,12 @@ public class OTLPMetricsConsumer {
                 System.out.println("🏷️  Atributos: " + metric.attributes);
             }
             
+            System.out.println("🎯 ENVIANDO PARA PROMETHEUS via Remote Write");
             System.out.println(SEPARATOR);
             System.out.println();
             
             // Log também para o sistema de logging
-            log.info("Métrica processada: {} = {} [{}] do serviço '{}'", 
+            log.info("Métrica processada e enviada para Prometheus: {} = {} [{}] do serviço '{}'", 
                     metric.metricName, metric.value, metric.metricType, metric.serviceName);
         }
     }
