@@ -57,9 +57,6 @@ services:
     volumes:
       - ./otel/config.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
     command: ["--config=/etc/otelcol-contrib/otel-collector-config.yaml"]
-    # depends_on:
-    #   kafka:
-    #     condition: service_healthy
     networks:
       - bigdata-net
     restart: unless-stopped
@@ -71,52 +68,6 @@ services:
         reservations:
           cpus: '0.1'       
           memory: 128M
-
-  # filebeat:
-  #   image: elastic/filebeat:8.17.4
-  #   restart: unless-stopped
-  #   user: root
-  #   ports:
-  #     - "5066:5066"  # Expose monitoring port
-  #   volumes:
-  #     - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-  #     - ./logs:/var/log
-  #     - /var/lib/docker/containers:/var/lib/docker/containers:ro
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #   command: [ "--strict.perms=false" ]  # disable permission check in dev
-  #   networks:
-  #     - bigdata-net
-
-  # postgres:
-  #   image: postgres:15
-  #   restart: unless-stopped
-  #   environment:
-  #     - POSTGRES_USER=postgres
-  #     - POSTGRES_PASSWORD=mysecret
-  #     - POSTGRES_DB=postgres
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-  #   networks:
-  #     - bigdata-net
-
-  # pgadmin:
-  #   image: elestio/pgadmin
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5050:8080"
-  #   environment:
-  #     - PGADMIN_DEFAULT_EMAIL=admin@admin.com
-  #     - PGADMIN_DEFAULT_PASSWORD=admin
-  #     - PGADMIN_LISTEN_PORT=8080
-  #   volumes:
-  #     - ./postgres/servers.json:/pgadmin4/servers.json
-  #   depends_on:
-  #     - postgres
-  #   networks:
-  #     - bigdata-net
 
   flink-jobmanager:
     build:

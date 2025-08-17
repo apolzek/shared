@@ -16,7 +16,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Imports adicionais para Prometheus Sink
 import org.apache.flink.connector.prometheus.sink.PrometheusSink;
 import org.apache.flink.connector.prometheus.sink.PrometheusSinkConfiguration.RetryConfiguration;
 import org.apache.flink.connector.prometheus.sink.PrometheusSinkConfiguration.SinkWriterErrorHandlingBehaviorConfiguration;
@@ -40,13 +39,11 @@ public class OTLPMetricsConsumer {
     private static final Logger log = LoggerFactory.getLogger(OTLPMetricsConsumer.class);
 
     public static void main(String[] args) throws Exception {
-        // Configurar o ambiente Flink
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         
         log.info("=== Iniciando OTLP Metrics Consumer ===");
         
-        // Configurar a fonte Kafka
         KafkaSource<OTLPMetricData> source = KafkaSource.<OTLPMetricData>builder()
                 .setBootstrapServers("kafka:29092")
                 .setTopics("otel-metrics")
@@ -55,23 +52,19 @@ public class OTLPMetricsConsumer {
                 .setValueOnlyDeserializer(new OTLPMetricsDeserializer())
                 .build();
 
-        // Criar stream de dados
         DataStream<OTLPMetricData> metricsStream = env.fromSource(
             source, 
             org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks(), 
             "kafka-otlp-source"
         );
 
-        // Processar e imprimir as métricas de forma amigável
         metricsStream.addSink(new MetricsPrettyPrintSink());
 
-        // *** NOVO: Configurar Prometheus Sink ***
         Properties prometheusProps = new Properties();
-        prometheusProps.setProperty("endpoint.url", "http://prometheus:9090/api/v1/write"); // Ajustar para seu endpoint
-        prometheusProps.setProperty("aws.region", "us-east-1"); // Ajustar para sua região se usando AMP
+        prometheusProps.setProperty("endpoint.url", "http://prometheus:9090/api/v1/write");
+        // prometheusProps.setProperty("aws.region", "us-east-1");
         prometheusProps.setProperty("max.request.retry", "3");
 
-        // Converter para formato Prometheus e enviar
         metricsStream
             .map(new OTLPToPrometheusMapper())
             .name("otlp-to-prometheus-mapper")
@@ -80,12 +73,10 @@ public class OTLPMetricsConsumer {
             .name("prometheus-sink")
             .uid("prometheus-sink");
 
-        // Executar o job
         log.info("=== Executando o job Flink ===");
         env.execute("OTLP Metrics Consumer");
     }
 
-    // *** NOVO: Método para criar Prometheus Sink ***
     private static Sink<PrometheusTimeSeries> createPrometheusSink(Properties prometheusSinkProperties) {
         String endpointUrl = prometheusSinkProperties.getProperty("endpoint.url");
         
@@ -113,13 +104,11 @@ public class OTLPMetricsConsumer {
                 .build();
     }
 
-    // *** NOVO: Mapper para converter OTLP para formato Prometheus ***
     public static class OTLPToPrometheusMapper implements MapFunction<OTLPMetricData, PrometheusTimeSeries> {
         
         @Override
         public PrometheusTimeSeries map(OTLPMetricData metric) throws Exception {
             if (metric.isError) {
-                // Para métricas com erro, criar uma métrica de erro
                 PrometheusTimeSeries.Label[] errorLabels = {
                     new PrometheusTimeSeries.Label("error_type", "deserialization_error"),
                     new PrometheusTimeSeries.Label("service_name", "otlp_consumer")

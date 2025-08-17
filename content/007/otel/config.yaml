@@ -20,12 +20,6 @@ processors:
         from_attribute: service.name
 
 exporters:
-  kafka/traces:
-    brokers:
-      - kafka:29092
-    topic: otel-traces
-    encoding: otlp_proto
-    protocol_version: 2.8.0
 
   kafka/metrics:
     brokers:
@@ -33,6 +27,13 @@ exporters:
     topic: otel-metrics
     encoding: otlp_proto
     # encoding: otlp_json
+    protocol_version: 2.8.0
+    
+  kafka/traces:
+    brokers:
+      - kafka:29092
+    topic: otel-traces
+    encoding: otlp_proto
     protocol_version: 2.8.0
 
   debug:
