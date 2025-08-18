@@ -1,0 +1,93 @@
+metrics:
+  - name: device_status
+    description: Current device status
+    labels:
+      - name: mode
+        values: ["on", "off"]
+        high_cardinality: false
+        count: 2
+      - name: device_id
+        high_cardinality: true
+        count: 100
+        pattern: "[a-z0-9]"
+        length: 8
+
+  - name: request_latency
+    description: Request latency in milliseconds
+    labels:
+      - name: endpoint
+        values: ["/login", "/signup", "/checkout"]
+        high_cardinality: false
+        count: 3
+      - name: user_id
+        high_cardinality: true
+        count: 1000
+        pattern: "[A-Z0-9]"
+        length: 12
+
+  - name: error_count
+    description: Error count by type
+    labels:
+      - name: error_type
+        values: ["timeout", "not_found", "unauthorized"]
+        high_cardinality: false
+        count: 3
+
+  # Additional examples with regex patterns
+  - name: memory_usage
+    description: Memory usage by process
+    labels:
+      - name: process_name
+        values: ["nginx", "postgres", "redis", "app"]
+        high_cardinality: false
+        count: 4
+      - name: process_id
+        high_cardinality: true
+        count: 500
+        pattern: "[0-9]"
+        length: 6
+
+  - name: network_bytes_total
+    description: Total bytes transferred over network
+    labels:
+      - name: direction
+        values: ["in", "out"]
+        high_cardinality: false
+        count: 2
+      - name: interface
+        values: ["eth0", "eth1", "lo"]
+        high_cardinality: false
+        count: 3
+      - name: connection_id
+        high_cardinality: true
+        count: 20000
+        pattern: "[a-zA-Z0-9]"
+        length: 16
+
+  # Examples with different regex patterns
+  - name: cpu_usage
+    description: CPU usage percentage
+    labels:
+      - name: core_id
+        high_cardinality: true
+        count: 32
+        pattern: "[0-9]"
+        length: 2
+      - name: hostname
+        high_cardinality: true
+        count: 50
+        pattern: "[a-z]"
+        length: 10
+
+  - name: disk_io_operations
+    description: Disk I/O operations per second
+    labels:
+      - name: device
+        values: ["/dev/sda", "/dev/sdb", "/dev/nvme0n1"]
+        high_cardinality: false
+        count: 3
+      - name: operation_id
+        high_cardinality: true
+        count: 1500
+        pattern: "[A-Z]"
+        length: 6

@@ -47,51 +47,27 @@ services:
     networks:
       - bigdata-net
 
-  filebeat:
-    image: elastic/filebeat:8.17.4
-    restart: unless-stopped
-    user: root
+  opentelemetry-collector:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    container_name: opentelemetry-collector
     ports:
-      - "5066:5066"  # Expose monitoring port
+      - "4317:4317" 
+      - "4318:4318" 
+      - "9115:9115" 
     volumes:
-      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - ./logs:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: [ "--strict.perms=false" ]  # disable permission check in dev
+      - ./otel/config.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
+    command: ["--config=/etc/otelcol-contrib/otel-collector-config.yaml"]
     networks:
       - bigdata-net
-
-  postgres:
-    image: postgres:15
     restart: unless-stopped
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=mysecret
-      - POSTGRES_DB=postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    networks:
-      - bigdata-net
-
-  pgadmin:
-    image: elestio/pgadmin
-    restart: unless-stopped
-    ports:
-      - "5050:8080"
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
-      - PGADMIN_DEFAULT_PASSWORD=admin
-      - PGADMIN_LISTEN_PORT=8080
-    volumes:
-      - ./postgres/servers.json:/pgadmin4/servers.json
-    depends_on:
-      - postgres
-    networks:
-      - bigdata-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'        
+          memory: 512M       
+        reservations:
+          cpus: '0.1'       
+          memory: 128M
 
   flink-jobmanager:
     build:
@@ -111,7 +87,6 @@ services:
       - bigdata-net
     volumes:
       - ./flink/jobs:/opt/flink/jobs
-      - ./data/BGL:/opt/flink/data/BGL
       - ./flink/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
       - ./flink/core:/opt/flink/core
 
@@ -133,18 +108,26 @@ services:
       - bigdata-net
     volumes:
       - flink_tm_data:/data
-      - ./data/BGL:/opt/flink/data/BGL
+      # - ./data/BGL:/opt/flink/data/BGL
       - ./flink/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
       - ./flink/jobs:/opt/flink/jobs
       - ./flink/core:/opt/flink/core
 
   prometheus:
-    image: prom/prometheus:latest
-    restart: unless-stopped
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
     networks:
       - bigdata-net
 
@@ -155,7 +138,7 @@ services:
       - "3000:3000"
     depends_on:
       - prometheus
-      - postgres
+      # - postgres
     volumes:
       - grafana_data:/var/lib/grafana
     environment:
@@ -163,26 +146,6 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
       - bigdata-net
-
-  ml-api:
-    build:
-      context: ./fastapi
-      dockerfile: Dockerfile
-    container_name: ml-api
-    ports:
-      - "8000"
-    networks:
-      - bigdata-net
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
 
 networks:
   bigdata-net:

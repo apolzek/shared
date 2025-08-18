@@ -74,3 +74,4 @@ Icon?
 */lib/
 *.jar
 
+__pycache__/
