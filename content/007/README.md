@@ -2,17 +2,13 @@
 
 ### Objectives
 
-The goal of this PoC is to build an environment where telemetry data is ingested by a lightweight OpenTelemetry Collector, which acts purely as a forwarder, sending metrics to Kafka without any advanced processing logic. Instead, the processing will be handled by Apache Flink, a tool designed specifically for stream data processing. This PoC will focus solely on metric data. The final goal is to forward the processed metrics to Prometheus using Flink's Prometheus Sink connector. The Flink processing pipeline will focus on two main objectives:
+The goal of this PoC is to build an environment where telemetry data is ingested by a lightweight OpenTelemetry Collector, which acts solely as a forwarder, sending metrics to Kafka without any advanced processing logic. Instead, processing will be performed by Apache Flink, a tool specifically designed for stream data processing. This PoC will focus exclusively on metrics data. The ultimate goal is to forward the processed metrics to Prometheus using Flink's Prometheus Sink connector.
+
+⚠️ This PoC has nothing to do with advanced processing in Flink, this will be covered in another PoC focused on techniques for dealing with high cardinality, data aggregation, and the use of machine learning/statistics.
+
+#### Ideas
 
 1. Remove high-cardinality labels
-
-```
-checkout_request_latency_seconds{user_id="550e8400-e29b-41d4-a716-446655440000", env="prod", region="us-east"} 0.342
-checkout_request_latency_seconds{user_id="c2f8b7a2-4b9e-4f7a-a98b-7e2f7b2f38c4", env="prod", region="us-east"} 0.291
-checkout_request_latency_seconds{user_id="d1a2e84b-8cf5-4d9d-a18d-4cfa65ad7f91", env="prod", region="us-east"} 0.518
-checkout_request_latency_seconds{user_id="aa6f8a92-bf24-4f7f-89c7-c71e93ef3d91", env="prod", region="us-east"} 0.445
-checkout_request_latency_seconds{user_id="f7c26b1d-0198-46e4-a923-7de28a57b4a5", env="prod", region="us-east"} 0.387
-```
 
 ```
 order_payment_failures_total{order_id="a3f5d12c-0b2a-4dc7-83e5-9f72c3a421df", env="prod", region="us-east"} 1
@@ -72,66 +68,65 @@ db_query_duration_seconds{query="SELECT * FROM orders WHERE id = 11223", env="pr
 
 2. Sanitize sensitive data that may appear in labels
 
+```
+# HELP user_cpf_valid Indicates whether the user's CPF has been validated (1 = valid, 0 = invalid)
+# TYPE user_cpf_valid gauge
+user_cpf_valid{cpf="123.456.789-09"} 1
+user_cpf_valid{cpf="987.654.321-00"} 0
+user_cpf_valid{cpf="111.222.333-44"} 1
+user_cpf_valid{cpf="555.666.777-88"} 1
+user_cpf_valid{cpf="999.888.777-66"} 0
+```
+
+```
+# HELP credit_card_payment_status Status of the user's credit card payment (1 = approved, 0 = declined)
+# TYPE credit_card_payment_status gauge
+credit_card_payment_status{card="4111 1111 1111 1111"} 1
+credit_card_payment_status{card="5500 0000 0000 0004"} 0
+credit_card_payment_status{card="3400 0000 0000 009"} 1
+credit_card_payment_status{card="3000 0000 0000 04"} 1
+credit_card_payment_status{card="6011 0000 0000 0004"} 0
+```
+
+3. Detect patterns such as:
+
+```
+Long sequential numbers: \d{8,}
+UUIDs: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+IP addresses: \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}
+Timestamps: ISO8601, epoch, etc.
+Email addresses: [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
+URLs: https?:\/\/[^\s]+
+Credit card numbers: \b(?:\d[ -]*?){13,16}\b
+MAC addresses: ([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})
+Phone numbers: \+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}
+Hex color codes: #([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})
+Base64 strings: (?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?
+JSON objects (simple detection): \{(?:[^{}]|(?R))*\}
+```
+
+#### Architecture
+
 ```mermaid
 graph TD
-    A[Applications / Services] --> B[OpenTelemetry Collector]
-    B --> C[Kafka - Telemetry Topic]
-    C --> D[Apache Flink]
-    D --> D1[Remove High-Cardinality Labels]
-    D --> D2[Sanitize Sensitive Label Data]
-    D1 --> E[Processed Metrics]
-    D2 --> E
-    E --> F[Prometheus - via Flink Prometheus Sink]
+    A[Applications] --OTLP--> B[OpenTelemetry Collector]
+    B --OTLP--> C[Kafka]
+    D[Apache Flink] --> C
+    D --Prometheus Sink Connector--> E[Prometheus]
 ```
 
-| Serviço                 | Porta(s) Exposta(s) | Versão da Imagem                             |
-| ----------------------- | ------------------- | -------------------------------------------- |
-| zookeeper               | 2181                | confluentinc/cp-zookeeper:7.9.0              |
-| kafka                   | 29092               | confluentinc/cp-kafka:7.9.0                  |
-| kafka-ui                | 8080                | provectuslabs/kafka-ui:latest                |
-| opentelemetry-collector | 4317, 4318, 9115    | otel/opentelemetry-collector-contrib:0.118.0 |
-| filebeat                | 5066                | elastic/filebeat:8.17.4                      |
-| postgres                | 5432                | postgres:15                                  |
-| pgadmin                 | 5050                | elestio/pgadmin                              |
-| flink-jobmanager        | 8081, 6123, 9249    |                                              |
-| flink-taskmanager       | 9250                |                                              |
-| prometheus              | 9090                | prom/prometheus:latest                       |
-| grafana                 | 3000                | grafana/grafana:latest                       |
+#### Services
 
-### Reaseach
-
-1. Stress Prometheus with high cardinality metrics and analyze behavor
-2. 
-
-### Solutions and questions
-
-#### Straming vs Batch
-
-#### regex and heuristics
-
-```
-Detectar padrões como:
-- Números sequenciais longos: \d{8,}
-- UUIDs: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
-- IPs: \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}
-- Timestamps: ISO8601, epoch, etc.
-```
-
-#### Entropia de Shannon
-
-#### Cardinalidade por janela temporal: count distinct por minuto/hora
-
-#### Distribuição de frequência: identificar valores únicos vs repetidos
-
-####  Machine Learning clustering
-
-#### State Backend: RocksDB 
-
-#### Count-Min Sketch
-
-#### T-Digest
-
-#### Bloom Filters
+| Service                 | Port             | Image                                        |
+| ----------------------- | ---------------- | -------------------------------------------- |
+| zookeeper               | 2181             | confluentinc/cp-zookeeper:7.9.0              |
+| kafka                   | 29092            | confluentinc/cp-kafka:7.9.0                  |
+| kafka-ui                | 8080             | provectuslabs/kafka-ui:latest                |
+| opentelemetry-collector | 4317, 4318, 9115 | otel/opentelemetry-collector-contrib:0.118.0 |
+| flink-jobmanager        | 8081, 6123, 9249 |                                              |
+| flink-taskmanager       | 9250             |                                              |
+| prometheus              | 9090             | prom/prometheus:latest                       |
+| grafana                 | 3000             | grafana/grafana:latest                       |
 
 ### Prerequisites
 
@@ -143,82 +138,24 @@ Detectar padrões como:
 
 ### Reproducing
 
-```
+Up enviroment 
+```sh
 docker compose up -d
 ```
 
-docker exec -it loganomalies-flink-jobmanager-1 bash
-ps aux | grep flink
-./bin/flink run -py jobs/word_count.py
-./bin/flink run -py jobs/anomaly_job.py
-docker compose down --remove-orphans
-flink run -c com.example.HighCardinalityJob target/<file.jar>
-
-for i in $(seq 1 100); do
-  echo "user_event_total2{user_id=\"user_$((RANDOM % 10000))\", session_id=\"sess_$(uuidgen)\"} 1"
-done | kafka-console-producer --topic raw-logs --bootstrap-server kafka:29092
-
-kafka-console-producer \
-  --topic raw-logs \
-  --bootstrap-server kafka:29092 < sample.txt
-
-docker compose down --remove-orphans
-
-for i in $(seq 1 100); do
-  echo "user_event_total2{user_id=\"user_$((RANDOM % 10000))\", session_id=\"sess_$(uuidgen)\"} 1"
-done | kafka-console-producer --topic raw-logs --bootstrap-server kafka:29092
-
-
-
-http://localhost:8080/
-http://localhost:5050/browser/
-
-
-kafka-console-producer \
-  --topic raw-logs \
-  --bootstrap-server kafka:29092 < sample.txt
-
-
+Build flink job 
+```sh
 mvn clean package
-flink run -c com.example.HighCardinalityJob target/high-cardinality-detector-1.0-SNAPSHOT.jar
-
-
-### Results
-
-
-
-### References
-🔗
-
-
-https://grafana.com/blog/2022/10/20/how-to-manage-high-cardinality-metrics-in-prometheus-and-kubernetes/
-https://medium.com/@platform.engineers/optimizing-prometheus-storage-handling-high-cardinality-metrics-at-scale-31140c92a7e4
-https://last9.io/blog/how-to-manage-high-cardinality-metrics-in-prometheus/
-https://grafana.com/blog/2022/12/02/monitoring-high-cardinality-jobs-with-grafana-grafana-loki-and-prometheus/
-https://data-mozart.com/cardinality-your-majesty/
-
-
-Flink
-https://aws.amazon.com/pt/blogs/big-data/process-millions-of-observability-events-with-apache-flink-and-write-directly-to-prometheus/
-https://mateus-oliveira.medium.com/produzindo-dados-no-apache-kafka-com-python-d072b6aae298
-https://dalelane.co.uk/blog/?p=5483
-https://blog.devops.dev/unlock-the-power-of-flink-metrics-with-prometheus-and-grafana-docker-compose-example-30d904f996e5
-https://current.confluent.io/post-conference-videos-2025/flink-kafka-and-prometheus-better-together-to-improve-efficiency-of-your-observability-platform-lnd25
-https://risingwave.com/blog/flink-and-prometheus-cloud-native-monitoring-of-streaming-applications/
-https://fosdem.org/2025/schedule/event/fosdem-2025-5726-apache-flink-and-prometheus-better-together-to-improve-the-efficiency-of-your-observability-platform-at-scale/
-https://fosdem.org/2025/events/attachments/fosdem-2025-5726-apache-flink-and-prometheus-better-together-to-improve-the-efficiency-of-your-observability-platform-at-scale/slides/238397/FOSDEM_-_9RvAzEV.pdf
-https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/overview/
-https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/overview/#session-mode
-https://www.youtube.com/watch?v=v3rnbzLXwx8
-
-https://github.com/vuanhtuan1407/LogAnomalies.git
-
-https://www.youtube.com/watch?v=trhsC9tcGU4
-https://nightlies.apache.org/flink/flink-docs-master/
-https://prometheus.io/docs/specs/prw/remote_write_spec/
-
-
 ```
+
+Upload job
+```sh
+docker exec -it $(docker ps | grep job | awk '{print $1}') bash
+flink run -c com.example.flink.metrics.MetricProcessor jobs/flink-telemetry-processor-1.0-SNAPSHOT.jar 2
+```
+
+Send metric to OpenTelemetry Collector
+```bash
 curl -X POST \
   http://localhost:4318/v1/metrics \
   -H "Content-Type: application/json" \
@@ -230,11 +167,27 @@ curl -X POST \
             {
               "key": "service.name",
               "value": { "stringValue": "curl-test-service" }
+            },
+            {
+              "key": "service.namespace",
+              "value": { "stringValue": "payment-system" }
+            },
+            {
+              "key": "host.name",
+              "value": { "stringValue": "my-host-123" }
+            },
+            {
+              "key": "deployment.environment",
+              "value": { "stringValue": "staging" }
             }
           ]
         },
         "scopeMetrics": [
           {
+            "scope": {
+              "name": "curl.manual.generator",
+              "version": "1.0.0"
+            },
             "metrics": [
               {
                 "name": "test_metric",
@@ -243,8 +196,22 @@ curl -X POST \
                 "sum": {
                   "dataPoints": [
                     {
-                      "asDouble": 42,
-                      "timeUnixNano": "1691145600000000000"
+                      "asDouble": 1111111,
+                      "timeUnixNano": "1691145600000000000",
+                      "attributes": [
+                        {
+                          "key": "region",
+                          "value": { "stringValue": "us-east-1" }
+                        },
+                        {
+                          "key": "instance.type",
+                          "value": { "stringValue": "t3.micro" }
+                        },
+                        {
+                          "key": "team",
+                          "value": { "stringValue": "observability" }
+                        }
+                      ]
                     }
                   ],
                   "aggregationTemporality": 2,
@@ -257,17 +224,33 @@ curl -X POST \
       }
     ]
   }'
+
 ```
 
 
-link run -c com.example.flink.otlp.OTLPMetricsConsumer flink-otlp-consumer-1.0-SNAPSHOT.jar
+### References
 
-
-https://github.com/open-telemetry/opentelemetry-proto-java
-https://github.com/apache/flink-connector-prometheus
-https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/prometheus/
-https://github.com/aws-samples/flink-prometheus-iot-demo
-https://github.com/vuanhtuan1407/LogAnomalies
-https://prometheus.io/docs/specs/prw/remote_write_spec
-https://github.com/apache/flink-connector-prometheus
-https://flink.apache.org/2024/12/05/introducing-the-new-prometheus-connector/
+```
+🔗 https://grafana.com/blog/2022/10/20/how-to-manage-high-cardinality-metrics-in-prometheus-and-kubernetes/  
+🔗 https://medium.com/@platform.engineers/optimizing-prometheus-storage-handling-high-cardinality-metrics-at-scale-31140c92a7e4  
+🔗 https://last9.io/blog/how-to-manage-high-cardinality-metrics-in-prometheus/  
+🔗 https://grafana.com/blog/2022/12/02/monitoring-high-cardinality-jobs-with-grafana-grafana-loki-and-prometheus/  
+🔗 https://data-mozart.com/cardinality-your-majesty/  
+🔗 https://aws.amazon.com/pt/blogs/big-data/process-millions-of-observability-events-with-apache-flink-and-write-directly-to-prometheus/  
+🔗 https://mateus-oliveira.medium.com/produzindo-dados-no-apache-kafka-com-python-d072b6aae298  
+🔗 https://dalelane.co.uk/blog/?p=5483  
+🔗 https://blog.devops.dev/unlock-the-power-of-flink-metrics-with-prometheus-and-grafana-docker-compose-example-30d904f996e5  
+🔗 https://risingwave.com/blog/flink-and-prometheus-cloud-native-monitoring-of-streaming-applications/  
+🔗 https://nightlies.apache.org/flink/flink-docs-master/docs/concepts/overview/  
+🔗 https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/overview/#session-mode  
+🔗 https://www.youtube.com/watch?v=v3rnbzLXwx8  
+🔗 https://github.com/vuanhtuan1407/LogAnomalies  
+🔗 https://www.youtube.com/watch?v=trhsC9tcGU4  
+🔗 https://nightlies.apache.org/flink/flink-docs-master/  
+🔗 https://prometheus.io/docs/specs/prw/remote_write_spec/  
+🔗 https://github.com/open-telemetry/opentelemetry-proto-java  
+🔗 https://github.com/apache/flink-connector-prometheus  
+🔗 https://nightlies.apache.org/flink/flink-docs-master/docs/connectors/datastream/prometheus/  
+🔗 https://github.com/aws-samples/flink-prometheus-iot-demo  
+🔗 https://flink.apache.org/2024/12/05/introducing-the-new-prometheus-connector/
+```

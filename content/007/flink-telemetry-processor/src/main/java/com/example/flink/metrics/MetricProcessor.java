@@ -1,4 +1,4 @@
-package com.example.flink.otlp;
+package com.example.flink.metrics;
 
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.Metric;
@@ -40,9 +40,9 @@ import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class OTLPMetricsConsumer {
+public class MetricProcessor {
     
-    private static final Logger LOGGER = LoggerFactory.getLogger(OTLPMetricsConsumer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricProcessor.class);
     
     private static final String KAFKA_BOOTSTRAP_SERVERS = "kafka:29092";
     private static final String KAFKA_TOPIC = "otel-metrics";

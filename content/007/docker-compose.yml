@@ -108,7 +108,7 @@ services:
       - bigdata-net
     volumes:
       - flink_tm_data:/data
-      - ./data/BGL:/opt/flink/data/BGL
+      # - ./data/BGL:/opt/flink/data/BGL
       - ./flink/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml:ro
       - ./flink/jobs:/opt/flink/jobs
       - ./flink/core:/opt/flink/core
