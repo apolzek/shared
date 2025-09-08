@@ -107,7 +107,7 @@ public class MetricProcessor {
             .uid("prometheus-sink");
 
         LOGGER.info("Executing Flink job with {} parallelism", actualParallelism);
-        env.execute("OTLP Metrics Consumer - High Performance");
+        env.execute("Telemetry Processor - Metrics");
     }
 
     private static KafkaSource<List<OTLPMetricData>> createKafkaSource() {
