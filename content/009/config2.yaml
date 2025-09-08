@@ -1,0 +1,36 @@
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4327"
+      http:
+        endpoint: "0.0.0.0:4328"
+
+exporters:
+  debug:
+    verbosity: "detailed"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      exporters: [debug]
+
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8889
+    logs:
+      level: "debug"
+      output_paths: ["stdout"]

@@ -1,0 +1,54 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+
+exporters:
+  otlp/first:
+    endpoint: "0.0.0.0:4327"
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: false
+    retry_on_failure:
+      enabled: false
+
+  otlp/second:
+    endpoint: "0.0.0.0:4337"
+    tls:
+      insecure: true 
+    sending_queue:
+      enabled: false
+    retry_on_failure:
+      enabled: false
+
+connectors:
+  failover:
+    priority_levels:
+      - [traces/first]
+      - [traces/second]
+    retry_interval: 10s
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [failover]
+    traces/first:
+      receivers: [failover]
+      exporters: [otlp/first]
+    traces/second:
+      receivers: [failover]
+      exporters: [otlp/second]
+
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 8881
