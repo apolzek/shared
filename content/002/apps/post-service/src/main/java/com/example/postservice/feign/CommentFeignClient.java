@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(value = "comment-service", url = "http://localhost:8082/api/v1/comments")
+@FeignClient(value = "comment-service", url = "http://comment-service:8082/api/v1/comments")
 public interface CommentFeignClient {
 
     @GetMapping("")

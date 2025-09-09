@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
 
   ################
@@ -84,7 +82,7 @@ services:
   #############################
 
   otel-collector:
-    image: otel/opentelemetry-collector:0.119.0
+    image: otel/opentelemetry-collector-contrib:latest
     restart: always
     command:
       - --config=/etc/otelcol-cont/otel-collector.yml
@@ -147,6 +145,28 @@ services:
     command: -config.file=/etc/promtail/docker-config.yaml
     depends_on:
       - loki
+    networks:
+      - monitoring
+
+  comment-service:
+    build:
+      context: ./apps/comment-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - monitoring
+
+  post-service:
+    build:
+      context: ./apps/post-service
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
     networks:
       - monitoring
 

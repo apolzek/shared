@@ -3,6 +3,7 @@ package com.example.postservice.controller;
 import com.example.postservice.domain.Post;
 import com.example.postservice.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +25,11 @@ public class PostController {
     @GetMapping(path = "/{id}")
     public Post getPostWithComments(@PathVariable int id) throws InterruptedException {
         return postService.getPostWithComments(id);
+    }
+
+    @GetMapping(path = "/exception")
+    public ResponseEntity<String> throwGenericException() {
+        throw new RuntimeException("Erro interno do servidor - Exceção genérica para testes");
     }
 
 }

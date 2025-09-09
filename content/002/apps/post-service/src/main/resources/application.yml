@@ -11,13 +11,31 @@ management:
       exposure:
         include: health
 
-  # otlp:
-  #   tracing:
-  #     endpoint: http://localhost:4317/v1/traces
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces
 
+    metrics:
+      export:
+        url: "http://otel-collector:4318/v1/metrics"
+        # batchSize: 15000
+        aggregationTemporality: "cumulative"
+        resourceAttributes:
+          service.name: "post-service"
+          deployment.environment: "development"
+      distribution:
+        percentiles-histogram:
+          http:
+            server:
+              requests: true
+        slo:
+          http:
+            server:
+              requests: 1ms,5ms,10ms,25ms,50ms,100ms,250ms,500ms,1000ms,2000ms
   tracing:
     sampling:
       probability: 1.0
+
 
 spring:
   application:

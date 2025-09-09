@@ -9,13 +9,44 @@ receivers:
 processors:
   batch:
 
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 15
+
+  deltatocumulative:
+
+  transform/populate:
+    metric_statements:
+      - context: datapoint
+        statements:
+        - set(attributes["host.name"], resource.attributes["host.name"]) where attributes["host.name"] == nil
+        - set(attributes["service.name"], resource.attributes["service.name"]) where attributes["service.name"] == nil
+
+  transform/changename:
+    trace_statements:
+      - context: resource
+        statements:
+          - replace_pattern(attributes["service.name"], "^(.*)-\\d+$$", "$$1")
+
+connectors:
+  count:
+    spans:
+      team.spans.count:
+        description: 
+        conditions:
+          - 'attributes["team"] == "platform"'
+
 exporters:
   debug:
 
   prometheus:
     endpoint: "0.0.0.0:8889"
     const_labels:
-      label1: spring
+      poc: "poc002"
+    resource_to_telemetry_conversion:
+      enabled: true
+
   otlp:
     endpoint: tempo:4317
     tls:
@@ -32,20 +63,24 @@ extensions:
 service:
   extensions: [health_check, pprof, zpages]
   pipelines:
-    # for now we only interested about metrics...
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      processors: [transform/changename, transform/populate]
       exporters: [prometheus]
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp]
+      processors: [transform/populate]
+      exporters: [otlp,count]
     logs:
       receivers: [otlp]
       exporters: [otlphttp/loki,debug]
+    metrics/count:
+      receivers: [count]
+      processors: [deltatocumulative]
+      exporters: [prometheus]
   telemetry:
     metrics:
+      level: detailed
       readers:
         - pull:
             exporter:

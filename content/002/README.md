@@ -45,15 +45,19 @@ graph TD
 ### Reproducing
 
 Up docker compose services and java applications
-```
-docker compose up -d
-cd apps/comment-service && mvn spring-boot:run
-cd apps/comment-service && mvn spring-boot:run
+```bash
+docker compose up --build
 ```
 
 Testing application using curl
+```bash
+curl http://localhost:8086/api/v1/posts/1
+for ((;;)); do curl http://localhost:8086/api/v1/posts/1 ;done
 ```
-curl http://localhost:8080/api/v1/posts/1
+
+*output*:
+```json
+{"id":1,"title":"What is the Zipkin?","content":"Nice tool","comments":[{"id":1,"content":"nice post 1","postId":1},{"id":2,"content":"nice post 2","postId":1},{"id":3,"content":"nice post 3","postId":1}]}
 ```
 
 ### FYI
@@ -64,11 +68,17 @@ labels:
     - logging=promtail
 ```
 
-Install java/maven using [mise](https://mise.jdx.dev/lang/java.html)
-```
+### Install java/maven using [mise](https://mise.jdx.dev/lang/java.html)
+```bash
 mise use -g java@17
 mise install maven
 mise use maven
+```
+
+Run Java applications without Docker container
+```bash
+cd apps/comment-service && mvn spring-boot:run
+cd apps/comment-service && mvn spring-boot:run
 ```
 
 **Grafana**: http://localhost:3000 
@@ -78,6 +88,8 @@ mise use maven
 The lab successfully demonstrated the integration of observability tools, with metrics, logs, and traces working seamlessly together. OpenTelemetry Collector proved to be the key component, acting as a flexible bridge between systems and enabling smooth data flow across the entire stack.
 
 ![image](./.image/grafana.png) 
+![image](./.image/micromiter.png)
+![image](./.image/metrics.png)
 
 ### References
 
@@ -89,4 +101,6 @@ The lab successfully demonstrated the integration of observability tools, with m
 🔗 https://github.com/open-telemetry/opentelemetry-java-instrumentation
 🔗 https://last9.io/blog/opentelemetry-java-agent/
 🔗 https://medium.com/@RafaelDurelli/end-to-end-observability-with-kubernetes-prometheus-grafana-plus-a-spring-boot-bonus-6e97f220da14
+🔗 https://github.com/open-telemetry/opentelemetry-collector/releases/tag/v0.133.0
+🔗 https://grafana.com/grafana/dashboards/20352-opentelemetry-jvm-micrometer/
 ```

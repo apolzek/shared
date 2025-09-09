@@ -1,6 +1,5 @@
 # Makefile
 
-# Nome do arquivo docker-compose.yaml
 CADDY_LOAD_BALANCER = ./type-load-balancer/docker-compose-caddy.yaml
 CADDY_REVERSE_PROXY = ./type-reverse-proxy/docker-compose-caddy.yaml
 
