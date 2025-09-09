@@ -87,9 +87,10 @@ cd apps/comment-service && mvn spring-boot:run
 
 The lab successfully demonstrated the integration of observability tools, with metrics, logs, and traces working seamlessly together. OpenTelemetry Collector proved to be the key component, acting as a flexible bridge between systems and enabling smooth data flow across the entire stack.
 
-![image](./.image/grafana.png) 
+![image](./.image/traces.png) 
 ![image](./.image/micromiter.png)
 ![image](./.image/metrics.png)
+![image](./.image/logs.png)
 
 ### References
 
