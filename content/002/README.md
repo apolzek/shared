@@ -14,7 +14,7 @@ This lab aims to test and integrate key observability tools including Prometheus
 | Node exporter                       | The node_exporter is designed to monitor the host system                                                                 | 9100 |
 | OpenTelemetry Collector             | The OpenTelemetry Collector offers a vendor-agnostic implementation of how to receive, process and export telemetry data | 4317 |
 | Spring Application(comment-service) | Java Spring application that sends traces to otel collector via HTTP on 4318 development                                 | 8082 |
-| Spring Application(post-service)    | Java Spring application that sends traces to otel collector via HTTP on 4318 development                                 | 8080 |
+| Spring Application(post-service)    | Java Spring application that sends traces to otel collector via HTTP on 4318 development                                 | 8086 |
 
 
 ```mermaid
@@ -81,9 +81,9 @@ cd apps/comment-service && mvn spring-boot:run
 cd apps/comment-service && mvn spring-boot:run
 ```
 
-**Grafana**: http://localhost:3000 
-
 ### Results
+
+**Grafana**: http://localhost:3000 
 
 The lab successfully demonstrated the integration of observability tools, with metrics, logs, and traces working seamlessly together. OpenTelemetry Collector proved to be the key component, acting as a flexible bridge between systems and enabling smooth data flow across the entire stack.
 
@@ -96,6 +96,7 @@ The lab successfully demonstrated the integration of observability tools, with m
 
 ```
 🔗 https://start.spring.io/
+🔗 https://docs.micrometer.io/micrometer/reference/implementations/otlp.html
 🔗 https://opentelemetry.io/docs/zero-code/java/spring-boot-starter/
 🔗 https://opentelemetry.io/docs/languages/java/instrumentation/
 🔗 https://opentelemetry.io/docs/languages/java/
