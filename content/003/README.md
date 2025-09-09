@@ -60,7 +60,7 @@ SELECT * FROM pg_available_extensions;
 SELECT * FROM pg_available_extensions WHERE name = 'postgis';
 ```
 
-Run heavy queries
+Execute demanding queries
 ```bash
 docker exec -it postgres_db psql -U rinha -d app_db -c "
 WITH RECURSIVE fibonacci(n, a, b) AS (
