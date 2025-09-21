@@ -53,3 +53,7 @@ content/007/flink/jobs/high-cardinality-detector-1.0-SNAPSHOT.jar
 content/007/flink/jobs/flink-otlp-consumer-1.0-SNAPSHOT.jar
 drafts/draft-013/.venv/lib/python3.12/site-packages/numpy.libs/libscipy_openblas64_-56d6093b.so
 drafts/draft-013/.venv/lib/python3.12/site-packages/numpy/_core/_multiarray_umath.cpython-312-x86_64-linux-gnu.so
+content/006/dist/custom-collector
+content/006/dist/custom-collector
+content/006/dist/custom-collector
+content/003/data/postgres/pg_wal/000000010000000000000001
