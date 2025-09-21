@@ -1,4 +1,4 @@
-## PostgreSQL streaming replication
+## PostgreSQL Replication
 
 ### Objectives
 

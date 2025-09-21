@@ -12,8 +12,8 @@ import (
 	"go.opentelemetry.io/collector/receiver"
 	otlpexporter "go.opentelemetry.io/collector/exporter/otlpexporter"
 	debugexporter "go.opentelemetry.io/collector/exporter/debugexporter"
-	schemadetectorprocessor "github.com/apolzek/sherlock-collector/processors/schemadetectorprocessor"
 	sleepprocessor "github.com/apolzek/sherlock-collector/processors/sleepprocessor"
+	alertprocessor "github.com/apolzek/sherlock-collector/processors/alertprocessor"
 	otlpreceiver "go.opentelemetry.io/collector/receiver/otlpreceiver"
 	prometheusreceiver "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver"
 )
@@ -37,8 +37,8 @@ func components() (otelcol.Factories, error) {
 		return otelcol.Factories{}, err
 	}
 	factories.ReceiverModules = make(map[component.Type]string, len(factories.Receivers))
-	factories.ReceiverModules[otlpreceiver.NewFactory().Type()] = "go.opentelemetry.io/collector/receiver/otlpreceiver v0.130.1"
-	factories.ReceiverModules[prometheusreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.131.0"
+	factories.ReceiverModules[otlpreceiver.NewFactory().Type()] = "go.opentelemetry.io/collector/receiver/otlpreceiver v0.135.0"
+	factories.ReceiverModules[prometheusreceiver.NewFactory().Type()] = "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.135.0"
 
 	factories.Exporters, err = otelcol.MakeFactoryMap[exporter.Factory](
 		otlpexporter.NewFactory(),
@@ -48,19 +48,19 @@ func components() (otelcol.Factories, error) {
 		return otelcol.Factories{}, err
 	}
 	factories.ExporterModules = make(map[component.Type]string, len(factories.Exporters))
-	factories.ExporterModules[otlpexporter.NewFactory().Type()] = "go.opentelemetry.io/collector/exporter/otlpexporter v0.130.1"
-	factories.ExporterModules[debugexporter.NewFactory().Type()] = "go.opentelemetry.io/collector/exporter/debugexporter v0.130.1"
+	factories.ExporterModules[otlpexporter.NewFactory().Type()] = "go.opentelemetry.io/collector/exporter/otlpexporter v0.135.0"
+	factories.ExporterModules[debugexporter.NewFactory().Type()] = "go.opentelemetry.io/collector/exporter/debugexporter v0.135.0"
 
 	factories.Processors, err = otelcol.MakeFactoryMap[processor.Factory](
-		schemadetectorprocessor.NewFactory(),
 		sleepprocessor.NewFactory(),
+		alertprocessor.NewFactory(),
 	)
 	if err != nil {
 		return otelcol.Factories{}, err
 	}
 	factories.ProcessorModules = make(map[component.Type]string, len(factories.Processors))
-	factories.ProcessorModules[schemadetectorprocessor.NewFactory().Type()] = "github.com/apolzek/sherlock-collector/processors/schemadetectorprocessor v0.0.1"
 	factories.ProcessorModules[sleepprocessor.NewFactory().Type()] = "github.com/apolzek/sherlock-collector/processors/sleepprocessor v0.0.1"
+	factories.ProcessorModules[alertprocessor.NewFactory().Type()] = "github.com/apolzek/sherlock-collector/processors/alertprocessor v0.0.1"
 
 	factories.Connectors, err = otelcol.MakeFactoryMap[connector.Factory](
 	)

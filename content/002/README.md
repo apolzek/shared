@@ -105,4 +105,5 @@ The lab successfully demonstrated the integration of observability tools, with m
 🔗 https://medium.com/@RafaelDurelli/end-to-end-observability-with-kubernetes-prometheus-grafana-plus-a-spring-boot-bonus-6e97f220da14
 🔗 https://github.com/open-telemetry/opentelemetry-collector/releases/tag/v0.133.0
 🔗 https://grafana.com/grafana/dashboards/20352-opentelemetry-jvm-micrometer/
+🔗 https://github.com/marcingrzejszczak/observability-boot-blog-post/blob/main/server/src/main/resources/application.properties
 ```

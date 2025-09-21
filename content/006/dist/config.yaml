@@ -2,38 +2,72 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+  
   prometheus:
     config:
       scrape_configs:
-
-        - job_name: 'app-file-metrics'
+        - job_name: 'otel-collector'
           static_configs:
-            - targets: ['localhost:2112']
-          scrape_interval: 15s
-          metrics_path: '/metrics'
+            - targets: ['localhost:8888']
 
 processors:
-  schemadetector:
-    log_file_path: "./schema_changes.json"
-    metric_filters:
-      - "my_metric"
-    tolerance_window_seconds: 5
 
   sleepprocessor:
-    sleep_milliseconds: 2000
+    sleep_milliseconds: 10000
+  
+  alertprocessor:
+    webhook_url: "http://localhost:8080/hook" 
+    alert_rules:
+      - name: "error-detector"
+        attribute_key: "error"                   
+      
+      - name: "critical-severity"
+        attribute_key: "severity"
+        attribute_value: "critical"               
+      
+      - name: "database-errors"
+        attribute_key: "error.type"
+        attribute_value: "database"
+        service_name: "user-service"             
+      
+      - name: "payment-service-monitor"
+        service_name: "payment-service"           
+      
+      - name: "high-priority-alerts"
+        attribute_key: "priority"
+        attribute_value: "high"                  
+        
+    webhook_timeout: 10s
+    webhook_headers:
+      Authorization: "Bearer your-token"
+      X-Custom-Header: "otel-alert"
+    enabled_for_traces: true
+    enabled_for_metrics: true
 
 exporters:
+
   debug:
-    verbosity: detailed
 
 service:
+  telemetry:
+    logs:
+      level: "info"
+
+  extensions: []
+  
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [sleepprocessor]
+      processors: [sleepprocessor,alertprocessor]
       exporters: [debug]
+    
     metrics:
-      receivers: [otlp,prometheus]
-      processors: [schemadetector]
+      receivers: [prometheus]
+      processors: []
       exporters: [debug]

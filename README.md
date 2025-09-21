@@ -11,7 +11,7 @@
 | [001](content/001) | 2025-01-10      | Exploring alternatives for load balancing and reverse proxy                                 |
 | [002](content/002) | 2025-02-10      | Building a modern observability platform using Prometheus, Grafana, Tempo and OpenTelemetry |
 | [003](content/003) | 2025-02-01      | How to monitor PostgreSQL running in container                                              |
-| [004](content/004) | 2025-06-27      | PostgreSQL streaming replication                                                            |
+| [004](content/004) | 2025-06-27      | PostgreSQL Replication                                                                      |
 | [005](content/005) | 2025-07-12      | Basic log segregation with OpenTelemetry using routing connector                            |
 | [006](content/006) | 2025-07-29      | Building a custom Opentelemetry Collector with custom processor                             |
 | [007](content/007) | 2025-08-20      | Processing observability data at scale with Apache Flink                                    |
