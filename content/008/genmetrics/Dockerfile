@@ -1,23 +1,15 @@
 FROM golang:1.25.0-alpine3.22 AS builder
-
 WORKDIR /app
-
-# Copiar dependências primeiro
 COPY go.mod go.sum ./
-
-# Baixar módulos
 RUN go mod download
 
-# Copiar o restante do código
 COPY . .
 
-# Compilar o binário
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -ldflags='-w -s -extldflags "-static"' \
     -a -installsuffix cgo \
     -o genmetrics .
 
-# Imagem final mínima
 FROM alpine:latest
 
 RUN addgroup -g 1001 appgroup && \

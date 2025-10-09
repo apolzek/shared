@@ -15,11 +15,11 @@ scrape_configs:
     scrape_timeout: 10s
     metrics_path: '/metrics'
 
-  # - job_name: 'prometheus'
-  #   static_configs:
-  #     - targets: ['localhost:9090']
-  #   scrape_interval: 5s
-  #   scrape_timeout: 5s
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 5s
+    scrape_timeout: 5s
 
   # - job_name: 'node-exporter'
   #   static_configs:

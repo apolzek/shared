@@ -37,32 +37,26 @@ type LabelConfig struct {
 	Length          int         `yaml:"length,omitempty"`
 }
 
-// Structure to store Prometheus metrics
 type MetricsCollector struct {
 	config  Config
 	metrics map[string]*prometheus.GaugeVec
 }
 
 func main() {
-	// Initialize random number generator
+
 	rand.Seed(time.Now().UnixNano())
 
-	// Get port from environment variable, default to 8090
 	port := getEnvWithDefault("PORT", "8090")
 
-	// Load configuration from YAML file
 	config, err := loadConfig("metrics.yaml")
 	if err != nil {
 		log.Fatal("Error loading configuration:", err)
 	}
 
-	// Create metrics collector
 	collector := NewMetricsCollector(config)
 
-	// Start goroutine to update metrics periodically
 	go collector.updateMetrics()
 
-	// Configure /metrics endpoint
 	http.Handle("/metrics", promhttp.Handler())
 
 	// Add health check endpoint
