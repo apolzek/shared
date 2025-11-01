@@ -1,0 +1,149 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.9.0
+    restart: unless-stopped
+    container_name: zookeeper
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+    networks:
+      - poc
+
+  kafka:
+    image: confluentinc/cp-kafka:7.9.0
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:29092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_DELETE_TOPIC_ENABLE=true
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    volumes:
+      - ./kafka/kafka-entrypoint.sh:/kafka-entrypoint.sh:ro
+      - ./kafka/:/tmp
+    command: [ "/kafka-entrypoint.sh" ]
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - poc
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    restart: unless-stopped
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local-cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - poc
+
+  opentelemetry-collector:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    container_name: opentelemetry-collector
+    depends_on:
+      - kafka
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "9115:9115"
+    volumes:
+      - ./otel/config.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
+    command: ["--config=/etc/otelcol-contrib/otel-collector-config.yaml"]
+    networks:
+      - poc
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  opentelemetry-collector-consumer:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    container_name: opentelemetry-collector-consumer
+    depends_on:
+      - kafka
+    ports:
+      - "4317"
+      - "4318"
+      - "9116:9115"
+    volumes:
+      - ./otel/consumer.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
+      - /tmp/container/:/tmp/
+    command: ["--config=/etc/otelcol-contrib/otel-collector-config.yaml"]
+    networks:
+      - poc
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
+    networks:
+      - poc
+
+  vector:
+    image: timberio/vector:0.50.0-debian
+    container_name: vector
+    depends_on:
+      - kafka
+    ports:
+      - "4319:4319"  # OTLP gRPC
+      - "4320:4320"  # OTLP HTTP
+      - "8686:8686"  # Vector API
+    volumes:
+      - ./vector/config.yaml:/etc/vector/vector.yaml:ro
+    command: ["--config", "/etc/vector/vector.yaml"]
+    networks:
+      - poc
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+networks:
+  poc:
+    driver: bridge

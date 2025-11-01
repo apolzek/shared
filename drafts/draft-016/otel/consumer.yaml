@@ -1,0 +1,61 @@
+receivers:
+  kafka/traces:
+    brokers:
+      - kafka:29092
+    topic: otel-traces
+    encoding: otlp_proto
+    group_id: otel-collector-traces-group
+    protocol_version: 2.8.0
+    initial_offset: earliest
+
+  kafka/metrics:
+    brokers:
+      - kafka:29092
+    topic: otel-metrics
+    encoding: otlp_proto
+    group_id: otel-collector-metrics-group
+    protocol_version: 2.8.0
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1000
+    send_batch_max_size: 1000
+
+  attributes:
+    actions:
+      - key: source.collector
+        action: insert
+        value: kafka-receiver
+
+exporters:
+  debug:
+    verbosity: detailed
+
+  file:
+    path: /tmp/otel_output.json
+    rotation:
+      max_megabytes: 100
+    format: json
+
+  prometheusremotewrite:
+    endpoint: "http://pormetheus:9090/api/v1/push"
+
+
+service:
+  pipelines:
+    traces:
+      receivers: [kafka/traces]
+      processors: [batch, attributes]
+      exporters: [file,debug]
+
+    metrics:
+      receivers: [kafka/metrics]
+      processors: [batch, attributes]
+      exporters: [file,prometheusremotewrite,debug]
+
+  telemetry:
+
+    logs:
+      level: DEBUG
+      output_paths: ["stdout"]

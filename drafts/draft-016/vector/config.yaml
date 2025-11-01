@@ -1,0 +1,108 @@
+# Vector configuration for receiving OTLP data and exporting to Kafka
+
+# Data directory for Vector
+data_dir: /var/lib/vector
+
+# Sources: Receive OTLP data
+sources:
+  source0:
+    type: opentelemetry
+    grpc:
+      address: 0.0.0.0:4319
+    http:
+      address: 0.0.0.0:4320
+    use_otlp_decoding: true
+
+# Transforms: Process the data (optional)
+transforms:
+  # Add partition key for Vector internal metrics (commented out)
+  # add_partition_key_metrics:
+  #   type: remap
+  #   inputs:
+  #     - internal_metrics
+  #   source: |
+  #     .partition_key = "vector-metrics"
+
+  # Add partition key for logs
+  add_partition_key_traces:
+    type: remap
+    inputs:
+      - source0.traces
+    source: |
+      .partition_key = "0"
+
+
+  traces_to_logs:
+    type: remap
+    inputs:
+      - source0.traces
+    source: |
+      . = encode_json!(.)
+
+
+# Sinks: Export to Kafka
+sinks:
+  # Console output for debugging - metrics (commented out)
+  # console_metrics:
+  #   type: console
+  #   inputs:
+  #     - add_partition_key_metrics
+  #   encoding:
+  #     codec: json
+
+  # Console output for debugging - traces
+  console_traces:
+    type: console
+    inputs:
+      - source0.traces
+    encoding:
+      codec: json
+
+
+
+  # Kafka sink for metrics (commented out)
+  # kafka_metrics:
+  #   type: kafka
+  #   inputs:
+  #     - add_partition_key_metrics
+  #   bootstrap_servers: kafka:29092
+  #   topic: vector-otel-metrics
+  #   encoding:
+  #     codec: json
+  #   compression: snappy
+  #   key_field: partition_key
+
+  # HTTP sink for traces -> Kafka REST Proxy
+
+  # Kafka sink for logs
+  # kafka_logs:
+  #   type: kafka
+  #   inputs:
+  #     - source0.traces
+  #   bootstrap_servers: kafka:29092
+  #   topic: vector-otel-traces
+  #   encoding:
+  #     codec: json
+  #   compression: snappy
+
+  my_sink:
+    type: kafka
+    inputs:
+      - traces_to_logs
+    bootstrap_servers: kafka:29092
+    encoding:
+      codec: json
+    topic: topic-example
+
+  my_sink_id:
+    type: file
+    encoding:
+      codec: json
+    inputs:
+      - source0.traces
+    path: /tmp/vector
+
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+  playground: false
