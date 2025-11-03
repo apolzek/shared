@@ -1,0 +1,23 @@
+  # vector:
+  #   image: timberio/vector:0.50.0-debian
+  #   container_name: vector
+  #   depends_on:
+  #     - kafka
+  #   ports:
+  #     - "4319:4319"  # OTLP gRPC
+  #     - "4320:4320"  # OTLP HTTP
+  #     - "8686:8686"  # Vector API
+  #   volumes:
+  #     - ./vector/config.yaml:/etc/vector/vector.yaml:ro
+  #   command: ["--config", "/etc/vector/vector.yaml"]
+  #   networks:
+  #     - poc
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 512M
+  #       reservations:
+  #         cpus: '0.1'
+  #         memory: 128M

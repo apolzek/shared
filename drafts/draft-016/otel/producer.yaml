@@ -39,6 +39,10 @@ exporters:
   debug:
     verbosity: detailed
 
+  otlp:
+    endpoint: 0.0.0.0:4317
+    # compression: lz4
+
 
 service:
   pipelines:
@@ -49,13 +53,17 @@ service:
       
     metrics:
       receivers: [otlp]
-      processors: [attributes, batch]
+      processors: []
       exporters: [kafka/metrics, debug]
 
   telemetry:
     metrics:
-      level: detailed
-      address: 0.0.0.0:9115
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: '0.0.0.0'
+                port: 9115
     logs:
-      level: WARN
+      level: DEBUG
       output_paths: ["stdout"]

@@ -12,6 +12,7 @@ services:
   kafka:
     image: confluentinc/cp-kafka:7.9.0
     restart: unless-stopped
+    container_name: kafka
     depends_on:
       - zookeeper
     ports:
@@ -28,9 +29,13 @@ services:
     volumes:
       - ./kafka/kafka-entrypoint.sh:/kafka-entrypoint.sh:ro
       - ./kafka/:/tmp
-    command: [ "/kafka-entrypoint.sh" ]
+    command: ["/kafka-entrypoint.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-broker-api-versions --bootstrap-server localhost:29092 || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,9 +58,9 @@ services:
     networks:
       - poc
 
-  opentelemetry-collector:
+  opentelemetry-collector-producer:
     image: otel/opentelemetry-collector-contrib:0.118.0
-    container_name: opentelemetry-collector
+    container_name: opentelemetry-collector-producer
     depends_on:
       - kafka
     ports:
@@ -63,7 +68,7 @@ services:
       - "4318:4318"
       - "9115:9115"
     volumes:
-      - ./otel/config.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
+      - ./otel/producer.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
     command: ["--config=/etc/otelcol-contrib/otel-collector-config.yaml"]
     networks:
       - poc
@@ -71,11 +76,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: "2"
+          memory: 2048M
         reservations:
-          cpus: '0.1'
-          memory: 128M
+          cpus: "0.5"
+          memory: 512M
 
   opentelemetry-collector-consumer:
     image: otel/opentelemetry-collector-contrib:0.118.0
@@ -85,7 +90,8 @@ services:
     ports:
       - "4317"
       - "4318"
-      - "9116:9115"
+      - "9115"
+      - "9005:9005"
     volumes:
       - ./otel/consumer.yaml:/etc/otelcol-contrib/otel-collector-config.yaml
       - /tmp/container/:/tmp/
@@ -96,11 +102,25 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: "2"
+          memory: 2048M
         reservations:
-          cpus: '0.1'
-          memory: 128M
+          cpus: "0.5"
+          memory: 512M
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka-exporter
+    restart: unless-stopped
+    ports:
+      - "9308:9308"
+    command:
+      - "--kafka.server=kafka:29092"
+      - "--log.level=info"
+    depends_on:
+      - kafka
+    networks:
+      - poc
 
   prometheus:
     image: prom/prometheus:v2.45.0
@@ -110,39 +130,33 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-      - '--web.enable-remote-write-receiver'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
+      - "--web.enable-remote-write-receiver"
     networks:
       - poc
 
-  vector:
-    image: timberio/vector:0.50.0-debian
-    container_name: vector
-    depends_on:
-      - kafka
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
     ports:
-      - "4319:4319"  # OTLP gRPC
-      - "4320:4320"  # OTLP HTTP
-      - "8686:8686"  # Vector API
+      - 3000:3000
+    restart: unless-stopped
+    environment:
+      # - GF_SECURITY_ADMIN_USER=admin
+      # - GF_SECURITY_ADMIN_PASSWORD=grafana
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
     volumes:
-      - ./vector/config.yaml:/etc/vector/vector.yaml:ro
-    command: ["--config", "/etc/vector/vector.yaml"]
+      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
     networks:
       - poc
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
 
 networks:
   poc:

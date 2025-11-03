@@ -17,44 +17,56 @@ receivers:
     protocol_version: 2.8.0
 
 processors:
+
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 100  
+    spike_limit_mib: 20
+
+
   batch:
-    timeout: 1s
-    send_batch_size: 1000
-    send_batch_max_size: 1000
+    timeout: 10s  
+    send_batch_size: 100  
+    send_batch_max_size: 150
+
+
+  batch/slow:
+    timeout: 15s
+    send_batch_size: 50
 
   attributes:
     actions:
       - key: source.collector
         action: insert
         value: kafka-receiver
+      - key: experiment
+        action: insert
+        value: backpressure-test
 
 exporters:
   debug:
     verbosity: detailed
 
-  file:
-    path: /tmp/otel_output.json
-    rotation:
-      max_megabytes: 100
-    format: json
-
-  prometheusremotewrite:
-    endpoint: "http://pormetheus:9090/api/v1/push"
-
+  prometheus:
+    endpoint: "0.0.0.0:9005"
+    enable_open_metrics: true
 
 service:
   pipelines:
     traces:
       receivers: [kafka/traces]
-      processors: [batch, attributes]
-      exporters: [file,debug]
+      processors: [attributes]
+      exporters: [debug]
 
     metrics:
       receivers: [kafka/metrics]
-      processors: [batch, attributes]
-      exporters: [file,prometheusremotewrite,debug]
+      processors: [attributes]
+      exporters: [debug, prometheus]
 
   telemetry:
+    metrics:
+      level: detailed
+      address: 0.0.0.0:9115
 
     logs:
       level: DEBUG
