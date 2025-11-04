@@ -20,13 +20,13 @@ processors:
 
   memory_limiter:
     check_interval: 1s
-    limit_mib: 100  
+    limit_mib: 100
     spike_limit_mib: 20
 
 
   batch:
-    timeout: 10s  
-    send_batch_size: 100  
+    timeout: 10s
+    send_batch_size: 100
     send_batch_max_size: 150
 
 
@@ -43,6 +43,24 @@ processors:
         action: insert
         value: backpressure-test
 
+connectors:
+  count:
+    spans:
+      telemetry.spans.count:
+        description: Count of spans received by service name
+        attributes:
+          - key: service.name
+            default_value: unknown
+    spanevents:
+      telemetry.spanevents.count:
+        description: Count of span events received
+    metrics:
+      telemetry.metrics.count:
+        description: Count of metrics received by service name
+    datapoints:
+      telemetry.datapoints.count:
+        description: Count of metric data points received by service name
+
 exporters:
   debug:
     verbosity: detailed
@@ -56,12 +74,16 @@ service:
     traces:
       receivers: [kafka/traces]
       processors: [attributes]
-      exporters: [debug]
+      exporters: [debug, count]
 
     metrics:
       receivers: [kafka/metrics]
       processors: [attributes]
-      exporters: [debug, prometheus]
+      exporters: [debug, prometheus, count]
+
+    metrics/count:
+      receivers: [count]
+      exporters: [prometheus]
 
   telemetry:
     metrics:
