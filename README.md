@@ -16,6 +16,7 @@
 | [006](content/006) | 2025-07-29      | Building a custom Opentelemetry Collector with custom processor                             |
 | [007](content/007) | 2025-08-20      | Processing observability data at scale with Apache Flink                                    |
 | [008](content/008) | 2025-09-05      | Understanding the high cardinality problem in Prometheus                                    |
+| [009](content/009) | 2025-11-29      | Quick Guide to Chart Types and When to Use Them                                             |
 
 <!--
 | [005](content/005) | 2025-01-01      | PostgreSQL observability #docker-compose                                    |

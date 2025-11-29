@@ -1,0 +1,83 @@
+services:
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+
+    command:
+      - "--storage.tsdb.retention.time=7d"
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    restart: always
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - 9093:9093
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    # volumes:
+    #   - ./grafana:/etc/grafana/provisioning/datasources
+    #   - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
+    #   - ./grafana/dashboards/node.json:/var/lib/grafana/dashboards/node-exporter.json
+    #   - ./grafana/dashboards/container.json:/var/lib/grafana/dashboards/container.json
+    networks:
+      - monitoring
+
+  flask-app:
+    build:
+      context: ./flask-app
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: development
+    networks:
+      - monitoring
+      
+  karma:
+    image: ghcr.io/prymitive/karma:latest
+    environment:
+      - ALERTMANAGER_URI=http://alertmanager:9093
+    ports:
+      - "8080:8080"
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - 9100:9100
+      
+networks:
+  monitoring:
+    driver: bridge
