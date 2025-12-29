@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Envoy Proxy - entrada para telemetria OTLP
+  envoy:
+    image: envoyproxy/envoy:v1.28-latest
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+      - "9901:9901"  # Envoy admin
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    command: ["-c", "/etc/envoy/envoy.yaml"]
+    networks:
+      - otel-network
+    depends_on:
+      - otel-collector-traces
+      - otel-collector-metrics
+      - otel-collector-logs
+
+  # Gateway para Traces
+  otel-collector-traces:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector-traces
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-traces.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317"      # OTLP gRPC
+      - "8888:8888" # Prometheus metrics
+    networks:
+      - otel-network
+
+  # Gateway para Metrics
+  otel-collector-metrics:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector-metrics
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-metrics.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317"      # OTLP gRPC
+      - "8889:8888" # Prometheus metrics
+    networks:
+      - otel-network
+
+  # Gateway para Logs
+  otel-collector-logs:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector-logs
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-logs.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317"      # OTLP gRPC
+      - "8890:8888" # Prometheus metrics
+    networks:
+      - otel-network
+
+  # Prometheus para coletar métricas dos collectors
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - otel-network
+    depends_on:
+      - otel-collector-traces
+      - otel-collector-metrics
+      - otel-collector-logs
+
+networks:
+  otel-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:

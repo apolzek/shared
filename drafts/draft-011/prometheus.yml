@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'otel-gateway-monitor'
+
+scrape_configs:
+  # Métricas do OpenTelemetry Collector - Traces Gateway
+  - job_name: 'otel-collector-traces'
+    static_configs:
+      - targets: ['otel-collector-traces:8888']
+        labels:
+          service: 'otel-traces-gateway'
+          environment: 'production'
+
+  # Métricas do OpenTelemetry Collector - Metrics Gateway
+  - job_name: 'otel-collector-metrics'
+    static_configs:
+      - targets: ['otel-collector-metrics:8888']
+        labels:
+          service: 'otel-metrics-gateway'
+          environment: 'production'
+
+  # Métricas do OpenTelemetry Collector - Logs Gateway
+  - job_name: 'otel-collector-logs'
+    static_configs:
+      - targets: ['otel-collector-logs:8888']
+        labels:
+          service: 'otel-logs-gateway'
+          environment: 'production'
+
+  # Métricas do Envoy (admin interface)
+  - job_name: 'envoy'
+    metrics_path: '/stats/prometheus'
+    static_configs:
+      - targets: ['envoy:9901']
+        labels:
+          service: 'envoy-proxy'
+          environment: 'production'
+
+  # Auto-monitoring do Prometheus
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
