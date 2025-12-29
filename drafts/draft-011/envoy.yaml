@@ -75,19 +75,19 @@ static_resources:
               routes:
               # Rota para traces
               - match:
-                  prefix: "/opentelemetry.proto.collector.trace.v1.TraceService"
+                  prefix: "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
                 route:
                   cluster: otel_traces_grpc_cluster
                   timeout: 30s
               # Rota para metrics
               - match:
-                  prefix: "/opentelemetry.proto.collector.metrics.v1.MetricsService"
+                  prefix: "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export"
                 route:
                   cluster: otel_metrics_grpc_cluster
                   timeout: 30s
               # Rota para logs
               - match:
-                  prefix: "/opentelemetry.proto.collector.logs.v1.LogsService"
+                  prefix: "/opentelemetry.proto.collector.logs.v1.LogsService/Export"
                 route:
                   cluster: otel_logs_grpc_cluster
                   timeout: 30s
@@ -128,25 +128,49 @@ static_resources:
   - name: otel_metrics_http_cluster
     type: STRICT_DNS
     lb_policy: ROUND_ROBIN
+    common_lb_config:
+      healthy_panic_threshold:
+        value: 0
     load_assignment:
       cluster_name: otel_metrics_http_cluster
       endpoints:
-      - lb_endpoints:
+      # Priority 0 - Primary collector
+      - priority: 0
+        lb_endpoints:
         - endpoint:
             address:
               socket_address:
                 address: otel-collector-metrics
                 port_value: 4318
+      # Priority 1 - Fallback collector
+      - priority: 1
+        lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: otel-collector-metrics-fallback
+                port_value: 4318
     health_checks:
     - timeout: 1s
-      interval: 10s
+      interval: 5s
       unhealthy_threshold: 2
       healthy_threshold: 2
       http_health_check:
         path: "/"
+    outlier_detection:
+      consecutive_5xx: 3
+      interval: 5s
+      base_ejection_time: 30s
+      max_ejection_percent: 100
+      consecutive_gateway_failure: 3
     circuit_breakers:
       thresholds:
       - priority: DEFAULT
+        max_connections: 1000
+        max_pending_requests: 1000
+        max_requests: 1000
+        max_retries: 3
+      - priority: HIGH
         max_connections: 1000
         max_pending_requests: 1000
         max_requests: 1000
@@ -205,18 +229,49 @@ static_resources:
     type: STRICT_DNS
     lb_policy: ROUND_ROBIN
     http2_protocol_options: {}
+    common_lb_config:
+      healthy_panic_threshold:
+        value: 0
     load_assignment:
       cluster_name: otel_metrics_grpc_cluster
       endpoints:
-      - lb_endpoints:
+      # Priority 0 - Primary collector
+      - priority: 0
+        lb_endpoints:
         - endpoint:
             address:
               socket_address:
                 address: otel-collector-metrics
                 port_value: 4317
+      # Priority 1 - Fallback collector
+      - priority: 1
+        lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: otel-collector-metrics-fallback
+                port_value: 4317
+    health_checks:
+    - timeout: 1s
+      interval: 5s
+      unhealthy_threshold: 2
+      healthy_threshold: 2
+      http_health_check:
+        path: "/"
+    outlier_detection:
+      consecutive_5xx: 3
+      interval: 5s
+      base_ejection_time: 30s
+      max_ejection_percent: 100
+      consecutive_gateway_failure: 3
     circuit_breakers:
       thresholds:
       - priority: DEFAULT
+        max_connections: 1000
+        max_pending_requests: 1000
+        max_requests: 1000
+        max_retries: 3
+      - priority: HIGH
         max_connections: 1000
         max_pending_requests: 1000
         max_requests: 1000

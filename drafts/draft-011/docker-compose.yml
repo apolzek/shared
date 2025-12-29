@@ -16,6 +16,7 @@ services:
     depends_on:
       - otel-collector-traces
       - otel-collector-metrics
+      - otel-collector-metrics-fallback
       - otel-collector-logs
 
   # Gateway para Traces
@@ -41,6 +42,19 @@ services:
     ports:
       - "4317"      # OTLP gRPC
       - "8889:8888" # Prometheus metrics
+    networks:
+      - otel-network
+
+  # Gateway para Metrics Fallback
+  otel-collector-metrics-fallback:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel-collector-metrics-fallback
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-metrics-fallback.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317"      # OTLP gRPC
+      - "8891:8888" # Prometheus metrics
     networks:
       - otel-network
 

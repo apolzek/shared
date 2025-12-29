@@ -267,3 +267,26 @@ docker-compose logs -f otel-collector-logs
 - ✅ Debug exporter para visualização dos dados
 - ✅ Prometheus coletando métricas de todos os componentes
 - ✅ Métricas do Envoy expostas
+
+
+Testing Traces (gRPC):
+  telemetrygen traces --otlp-insecure --otlp-endpoint localhost:4317 --duration 10s --rate 10
+
+  Testing Traces (HTTP):
+  telemetrygen traces --otlp-insecure --otlp-http-url-path=/v1/traces --otlp-endpoint localhost:4318 --duration 10s --rate 10
+
+  Testing Metrics (gRPC):
+  telemetrygen metrics --otlp-insecure --otlp-endpoint localhost:4317 --duration 10s --rate 10
+
+  Testing Metrics (HTTP):
+  telemetrygen metrics --otlp-insecure --otlp-http-url-path=/v1/metrics --otlp-endpoint localhost:4318 --duration 10s --rate 10
+
+  Testing Logs (gRPC):
+  telemetrygen logs --otlp-insecure --otlp-endpoint localhost:4317 --duration 10s --rate 10
+
+  Testing Logs (HTTP):
+  telemetrygen logs --otlp-insecure --otlp-http-url-path=/v1/logs --otlp-endpoint localhost:4318 --duration 10s --rate 10
+
+  If you don't have telemetrygen installed, you can run it via Docker:
+  docker run --network host otel/opentelemetry-collector-contrib:0.91.0 \
+    telemetrygen traces --otlp-insecure --otlp-endpoint localhost:4317 --duration 10s --rate 10

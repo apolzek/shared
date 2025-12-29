@@ -3,6 +3,7 @@
 **/venv/
 **/.venv/
 **/target/
+**/.DS_Store
 
 *.jar
 *.war

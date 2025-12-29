@@ -1,0 +1,64 @@
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    restart: unless-stopped
+    networks:
+      - otel-network
+
+  # HTTP/JSON telemetry sender (uses OTLP/HTTP with JSON encoding)
+  http-json-sender:
+    build:
+      context: ./http-json-sender
+    container_name: http-json-sender
+    depends_on:
+      - otel-collector
+    networks:
+      - otel-network
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+
+  # HTTP/Protobuf telemetry sender (uses OTLP/HTTP with protobuf encoding)
+  http-proto-sender:
+    build:
+      context: ./http-proto-sender
+    container_name: http-proto-sender
+    depends_on:
+      - otel-collector
+    networks:
+      - otel-network
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+
+  # gRPC telemetry sender (uses OTLP/gRPC)
+  grpc-sender:
+    build:
+      context: ./grpc-sender
+    container_name: grpc-sender
+    depends_on:
+      - otel-collector
+    networks:
+      - otel-network
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+
+  # Network analysis container with tcpdump
+  tcpdump-analyzer:
+    image: nicolaka/netshoot
+    container_name: tcpdump-analyzer
+    command: sleep infinity
+    network_mode: "service:otel-collector"
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+
+networks:
+  otel-network:
+    driver: bridge
