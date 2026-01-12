@@ -1,6 +1,6 @@
 # shared
 
-*Where I break things (on purpose) while testing ideas from stuff I read*
+*collection of proof-of-concepts (PoCs) created to explore ideas and test technologies*
 
 ### Content
 
